@@ -46,27 +46,19 @@ function playSound(type: 'send' | 'receive') {
 function UccsitoAvatar({ size = 40 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Fondo circular */}
       <circle cx="40" cy="40" r="40" fill="#0ea5e9"/>
-      {/* Birrete */}
       <rect x="18" y="22" width="44" height="6" rx="3" fill="white"/>
       <rect x="36" y="16" width="8" height="10" rx="2" fill="white"/>
       <line x1="58" y1="25" x2="62" y2="34" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
       <circle cx="62" cy="36" r="3" fill="#fbbf24"/>
-      {/* Cara */}
       <circle cx="40" cy="46" r="16" fill="#fde68a"/>
-      {/* Ojos */}
       <circle cx="34" cy="43" r="2.5" fill="#1e3a5f"/>
       <circle cx="46" cy="43" r="2.5" fill="#1e3a5f"/>
-      {/* Brillo ojos */}
       <circle cx="35" cy="42" r="0.8" fill="white"/>
       <circle cx="47" cy="42" r="0.8" fill="white"/>
-      {/* Sonrisa */}
       <path d="M33 50 Q40 56 47 50" stroke="#1e3a5f" strokeWidth="2" strokeLinecap="round" fill="none"/>
-      {/* Cachetes */}
       <circle cx="30" cy="49" r="3" fill="#fca5a5" opacity="0.6"/>
       <circle cx="50" cy="49" r="3" fill="#fca5a5" opacity="0.6"/>
-      {/* Cuerpo con toga */}
       <path d="M24 68 Q28 58 40 56 Q52 58 56 68" fill="#1e3a5f"/>
       <path d="M32 62 L40 70 L48 62" fill="white" opacity="0.3"/>
     </svg>
@@ -141,19 +133,20 @@ export default function ChatPage() {
     <div className="flex flex-col h-screen font-sans" style={{background:'linear-gradient(135deg,#e0f2fe 0%,#f0f9ff 50%,#e8f4fd 100%)'}}>
 
       {/* Header */}
-      <header className="flex items-center gap-3 px-5 py-3 shadow-md" style={{background:'linear-gradient(90deg,#0369a1,#0ea5e9)'}}>
-        <div className="relative">
+      <header className="flex items-center gap-3 px-4 sm:px-5 py-3 shadow-md" style={{background:'linear-gradient(90deg,#0369a1,#0ea5e9)'}}>
+        <div className="relative shrink-0">
           <UccsitoAvatar size={48} />
           <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full"/>
         </div>
-        <div>
+        <div className="flex-1 min-w-0"> {/* Contenedor flexible para truncar textos */}
           <div className="flex items-center gap-2">
-            <h1 className="font-bold text-white text-lg leading-none">uccsito</h1>
-            <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full font-mono">IA</span>
+            <h1 className="font-bold text-white text-lg leading-none truncate">uccsito</h1>
+            <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full font-mono shrink-0">IA</span>
           </div>
-          <p className="text-sky-100 text-xs mt-0.5">Asistente Virtual · Universidad Católica Sedes Sapientiae</p>
+          <p className="text-sky-100 text-xs mt-0.5 truncate">Asistente Virtual · Universidad Católica Sedes Sapientiae</p>
         </div>
-        <div className="ml-auto text-right">
+        {/* Se oculta en celulares y se muestra en tablets/desktop */}
+        <div className="ml-auto text-right shrink-0 hidden sm:block"> 
           <p className="text-white/60 text-xs">En línea</p>
           <p className="text-white/40 text-[10px]">Responde al instante</p>
         </div>
@@ -161,7 +154,6 @@ export default function ChatPage() {
 
       {/* Mensajes */}
       <main className="flex-1 overflow-y-auto px-4 py-5 space-y-4 max-w-3xl w-full mx-auto">
-
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 items-end ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
             {msg.role === 'assistant' ? (
@@ -171,7 +163,8 @@ export default function ChatPage() {
                 Tú
               </div>
             )}
-            <div className={`max-w-[78%] px-4 py-3 text-sm leading-relaxed shadow-sm ${
+            {/* Burbuja ajustada para ser 92% en móvil y 78% en desktop */}
+            <div className={`max-w-[92%] md:max-w-[78%] px-4 py-3 text-sm leading-relaxed shadow-sm ${
               msg.role === 'assistant'
                 ? 'bg-white border border-sky-100 rounded-2xl rounded-bl-none text-slate-700'
                 : 'text-white rounded-2xl rounded-br-none'
