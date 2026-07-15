@@ -94,7 +94,7 @@ function fmt(text: string): string {
     .replace(/\n/g, '<br/>');
 
   // Envolver <li> sueltos en <ul>
-  html = html.replace(/(<li>.*?<\/li>(<br\/>)?)+/gs, (match) => {
+  html = html.replace(/(<li>[\s\S]*?<\/li>(<br\/>)?)+/g, (match) => {
     const items = match.replace(/<br\/>/g, '');
     return `<ul class="chat-list">${items}</ul>`;
   });
