@@ -15,7 +15,6 @@ const SUGGESTED_QUESTIONS = [
   "¿Qué trámites puedo hacer en secretaría?",
 ];
 
-// Sonidos sintéticos con Web Audio API
 function playSound(type: 'send' | 'receive') {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -42,7 +41,6 @@ function playSound(type: 'send' | 'receive') {
   } catch {}
 }
 
-// Avatar SVG de uccsito — mascota universitaria
 function UccsitoAvatar({ size = 40 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -76,6 +74,37 @@ function TypingIndicator() {
       </div>
     </div>
   );
+}
+
+// ✅ Función fmt mejorada: soporta imágenes, listas, negrita y sanitiza HTML
+function fmt(text: string): string {
+  let html = text
+    // Marcador de imagen [IMG:url|alt]
+    .replace(
+      /\[IMG:(https?:\/\/[^\|]+)\|([^\]]+)\]/g,
+      '<img src="$1" alt="$2" class="chat-img"/>'
+    )
+    // Negrita **texto**
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Cursiva *texto*
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    // Listas con asterisco o guión
+    .replace(/^[\*\-] (.+)/gm, '<li>$1</li>')
+    // Saltos de línea
+    .replace(/\n/g, '<br/>');
+
+  // Envolver <li> sueltos en <ul>
+  html = html.replace(/(<li>.*?<\/li>(<br\/>)?)+/gs, (match) => {
+    const items = match.replace(/<br\/>/g, '');
+    return `<ul class="chat-list">${items}</ul>`;
+  });
+
+  // Eliminar etiquetas peligrosas (script, iframe, etc.)
+  html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
+  html = html.replace(/<iframe[\s\S]*?<\/iframe>/gi, '');
+  html = html.replace(/on\w+="[^"]*"/gi, '');
+
+  return html;
 }
 
 export default function ChatPage() {
@@ -126,11 +155,28 @@ export default function ChatPage() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const fmt = (text: string) =>
-    text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>');
-
   return (
     <div className="flex flex-col h-screen font-sans" style={{background:'linear-gradient(135deg,#e0f2fe 0%,#f0f9ff 50%,#e8f4fd 100%)'}}>
+
+      {/* Estilos para imágenes y listas dentro del chat */}
+      <style>{`
+        .chat-img {
+          border-radius: 0.75rem;
+          max-width: 100%;
+          height: auto;
+          margin-top: 0.5rem;
+          display: block;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+        .chat-list {
+          margin: 0.25rem 0 0 1rem;
+          padding: 0;
+          list-style: disc;
+        }
+        .chat-list li {
+          margin-bottom: 0.2rem;
+        }
+      `}</style>
 
       {/* Header */}
       <header className="flex items-center gap-3 px-4 sm:px-5 py-3 shadow-md" style={{background:'linear-gradient(90deg,#0369a1,#0ea5e9)'}}>
@@ -138,15 +184,14 @@ export default function ChatPage() {
           <UccsitoAvatar size={48} />
           <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full"/>
         </div>
-        <div className="flex-1 min-w-0"> {/* Contenedor flexible para truncar textos */}
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="font-bold text-white text-lg leading-none truncate">uccsito</h1>
             <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full font-mono shrink-0">IA</span>
           </div>
           <p className="text-sky-100 text-xs mt-0.5 truncate">Asistente Virtual · Universidad Católica Sedes Sapientiae</p>
         </div>
-        {/* Se oculta en celulares y se muestra en tablets/desktop */}
-        <div className="ml-auto text-right shrink-0 hidden sm:block"> 
+        <div className="ml-auto text-right shrink-0 hidden sm:block">
           <p className="text-white/60 text-xs">En línea</p>
           <p className="text-white/40 text-[10px]">Responde al instante</p>
         </div>
@@ -163,17 +208,15 @@ export default function ChatPage() {
                 Tú
               </div>
             )}
-            {/* Burbuja ajustada para ser 92% en móvil y 78% en desktop */}
             <div className={`max-w-[92%] md:max-w-[78%] px-4 py-3 text-sm leading-relaxed shadow-sm ${
               msg.role === 'assistant'
                 ? 'bg-white border border-sky-100 rounded-2xl rounded-bl-none text-slate-700'
                 : 'text-white rounded-2xl rounded-br-none'
             }`} style={msg.role === 'user' ? {background:'linear-gradient(135deg,#0369a1,#0ea5e9)'} : {}}>
-              <span dangerouslySetInnerHTML={{ __html: fmt(msg.content) }} />
+              <span className="chat-bubble" dangerouslySetInnerHTML={{ __html: fmt(msg.content) }} />
             </div>
           </div>
         ))}
-
         {loading && <TypingIndicator />}
         <div ref={bottomRef} />
       </main>
