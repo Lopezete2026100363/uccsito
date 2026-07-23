@@ -496,9 +496,7 @@ export default function ChatPage() {
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" style={{ boxShadow: '0 0 4px #4ade80' }}/>
-              <p className="text-[11px] truncate" style={{ color: 'rgba(125,211,252,.85)' }}>
-  Creado por <span className="font-semibold text-white">Luis Fernando Lopez Vara</span> · En línea
-</p>
+              <p className="text-[11px] truncate" style={{ color: 'rgba(125,211,252,.85)' }}>En línea · Asistente Virtual 24/7</p>
             </div>
           </div>
         </div>
@@ -618,9 +616,15 @@ export default function ChatPage() {
             <Send className="w-4 h-4" />
           </button>
         </div>
-        <p className="text-center text-[10px] mt-2" style={{ color: dark ? '#94a3b8' : '#475569' }}>
-  Desarrollado por <span className="font-semibold" style={{ color: '#00A3E0' }}>Luis Fernando Lopez Vara</span> · UCSS
-</p>
+        <div className="flex items-center justify-center gap-2 mt-2 text-[11px]" style={{ color: dark ? '#94a3b8' : '#475569' }}>
+          <div className="w-6 h-6 rounded-full overflow-hidden border border-[#00A3E0]/40 shrink-0 bg-slate-800">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/meme.jpg" alt="Meme Inge" className="w-full h-full object-cover" />
+          </div>
+          <span>
+            Desarrollado por <span className="font-semibold" style={{ color: '#00A3E0' }}>Luis Lopez</span> <span className="italic opacity-80">(tu inge 🤓)</span> · UCSS
+          </span>
+        </div>
       </div>
     </div>
   );
