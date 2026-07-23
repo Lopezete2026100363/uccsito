@@ -496,7 +496,9 @@ export default function ChatPage() {
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" style={{ boxShadow: '0 0 4px #4ade80' }}/>
-              <p className="text-[11px] truncate" style={{ color: 'rgba(125,211,252,.85)' }}>En línea · Asistente Virtual 24/7</p>
+              <p className="text-[11px] truncate" style={{ color: 'rgba(125,211,252,.85)' }}>
+  Creado por <span className="font-semibold text-white">Luis Fernando Lopez Vara</span> · En línea
+</p>
             </div>
           </div>
         </div>
@@ -616,9 +618,9 @@ export default function ChatPage() {
             <Send className="w-4 h-4" />
           </button>
         </div>
-        <p className="text-center text-[10px] mt-2" style={{ color: dark ? '#475569' : '#94a3b8' }}>
-          uccsito puede cometer errores · Verifica información importante con tu coordinador
-        </p>
+        <p className="text-center text-[10px] mt-2" style={{ color: dark ? '#94a3b8' : '#475569' }}>
+  Desarrollado por <span className="font-semibold" style={{ color: '#00A3E0' }}>Luis Fernando Lopez Vara</span> · UCSS
+</p>
       </div>
     </div>
   );
