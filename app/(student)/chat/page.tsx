@@ -83,10 +83,56 @@ function TypingIndicator({ dark }: { dark: boolean }) {
   );
 }
 
-// ── Partículas / Luciérnagas ──────────────────────────────────────────────────
+// ── Fondo Cósmico Sol / Luna ────────────────────────────────────────────────
+function CosmicBackdrop({ dark }: { dark: boolean }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
+      {/* Base nocturna/azulada */}
+      <div className="absolute inset-0" style={{
+        background: dark
+          ? 'linear-gradient(135deg,#020617 0%,#050b1f 45%,#0a1830 100%)'
+          : 'linear-gradient(135deg,#eaf3fb 0%,#dbeafe 45%,#e0eefc 100%)',
+        transition: 'background .6s',
+      }} />
+
+      {/* Sol — lado izquierdo */}
+      <div className="absolute rounded-full" style={{
+        left: '-14%', top: '-10%',
+        width: '58vmin', height: '58vmin',
+        background: 'radial-gradient(circle at 42% 42%, #fff7d6 0%, #ffd76a 22%, #fbbf24 45%, #f59e0b 65%, rgba(245,158,11,0) 78%)',
+        filter: dark ? 'brightness(1.15) saturate(1.25)' : 'brightness(1.05)',
+        opacity: dark ? 0.95 : 0.85,
+        boxShadow: '0 0 160px 60px rgba(251,191,36,.35)',
+        transition: 'opacity .6s',
+      }} />
+
+      {/* Luna — lado derecho */}
+      <div className="absolute rounded-full" style={{
+        right: '-12%', bottom: '-12%',
+        width: '52vmin', height: '52vmin',
+        background: 'radial-gradient(circle at 60% 38%, #f4f8ff 0%, #cfe0f5 20%, #9fb8d9 42%, #5f7ba3 62%, rgba(95,123,163,0) 78%)',
+        filter: 'saturate(1.1)',
+        opacity: dark ? 0.9 : 0.55,
+        boxShadow: '0 0 140px 50px rgba(148,180,224,.3)',
+        transition: 'opacity .6s',
+      }} />
+
+      {/* Textura sutil de cráteres en la luna */}
+      <div className="absolute rounded-full" style={{
+        right: '-2%', bottom: '4%',
+        width: '30vmin', height: '30vmin',
+        background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,.25) 0%, transparent 40%), radial-gradient(circle at 65% 60%, rgba(90,110,140,.3) 0%, transparent 35%)',
+        opacity: 0.7,
+      }} />
+    </div>
+  );
+}
+
+// ── Partículas / Luciérnagas interactivas ───────────────────────────────────
 function FirefliesCanvas({ dark }: { dark: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
+  const pointerRef = useRef({ x: -9999, y: -9999, active: false });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -101,39 +147,114 @@ function FirefliesCanvas({ dark }: { dark: boolean }) {
     resize();
     window.addEventListener('resize', resize);
 
-    // Paleta: turquesa, dorado, rosa, violeta
-    const palette = ['#00A3E0','#fbbf24','#f9a8d4','#a78bfa','#7dd3fc','#86efac'];
+    // Paleta neón: cian, dorado, violeta
+    const palette = ['#22d3ee', '#7dd3fc', '#fbbf24', '#facc15', '#a78bfa', '#c084fc', '#f9a8d4'];
 
-    const count = 38;
-    const flies = Array.from({ length: count }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      r: Math.random() * 2.2 + 0.6,
-      vx: (Math.random() - 0.5) * 0.35,
-      vy: (Math.random() - 0.5) * 0.35,
-      color: palette[Math.floor(Math.random() * palette.length)],
-      phase: Math.random() * Math.PI * 2,
-      speed: Math.random() * 0.012 + 0.006,
-      glow: Math.random() * 8 + 4,
-    }));
+    const count = 60;
+    type Fly = {
+      x: number; y: number; r: number; vx: number; vy: number;
+      color: string; phase: number; speed: number; glow: number; baseR: number;
+    };
+    const flies: Fly[] = Array.from({ length: count }, () => {
+      const baseR = Math.random() * 2.4 + 0.8;
+      return {
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: baseR,
+        baseR,
+        vx: (Math.random() - 0.5) * 0.7,
+        vy: (Math.random() - 0.5) * 0.7,
+        color: palette[Math.floor(Math.random() * palette.length)],
+        phase: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.02 + 0.01,
+        glow: Math.random() * 10 + 6,
+      };
+    });
+
+    // Chispas explosivas (ráfagas) generadas por interacción
+    type Spark = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; r: number };
+    let sparks: Spark[] = [];
+
+    const spawnBurst = (x: number, y: number, n = 10) => {
+      for (let i = 0; i < n; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 3.5 + 1.5;
+        sparks.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 0,
+          maxLife: Math.random() * 24 + 18,
+          color: palette[Math.floor(Math.random() * palette.length)],
+          r: Math.random() * 1.8 + 0.6,
+        });
+      }
+    };
+
+    const getPos = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+
+    let lastBurst = 0;
+    const onPointerMove = (e: PointerEvent) => {
+      const { x, y } = getPos(e);
+      pointerRef.current = { x, y, active: true };
+      const now = performance.now();
+      if (now - lastBurst > 60) {
+        spawnBurst(x, y, 3);
+        lastBurst = now;
+      }
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      const { x, y } = getPos(e);
+      pointerRef.current = { x, y, active: true };
+      spawnBurst(x, y, 26);
+    };
+    const onPointerLeave = () => { pointerRef.current.active = false; };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerdown', onPointerDown, { passive: true });
+    window.addEventListener('pointerleave', onPointerLeave);
 
     let t = 0;
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       t += 1;
+
+      const { x: px, y: py, active } = pointerRef.current;
+
       flies.forEach(f => {
+        // Atracción cósmica hacia el puntero
+        if (active) {
+          const dx = px - f.x;
+          const dy = py - f.y;
+          const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+          const pull = Math.min(140 / dist, 1) * 0.18;
+          f.vx += (dx / dist) * pull;
+          f.vy += (dy / dist) * pull;
+          f.r = f.baseR + Math.max(0, (160 - dist) / 160) * 2.2;
+        } else {
+          f.r += (f.baseR - f.r) * 0.08;
+        }
+
+        // Fricción para que no aceleren indefinidamente
+        f.vx *= 0.965;
+        f.vy *= 0.965;
+
         f.x += f.vx;
         f.y += f.vy;
         if (f.x < 0) f.x = canvas.width;
         if (f.x > canvas.width) f.x = 0;
         if (f.y < 0) f.y = canvas.height;
         if (f.y > canvas.height) f.y = 0;
+
         const alpha = dark
-          ? 0.45 + 0.45 * Math.sin(t * f.speed + f.phase)
-          : 0.18 + 0.18 * Math.sin(t * f.speed + f.phase);
+          ? 0.55 + 0.45 * Math.sin(t * f.speed + f.phase)
+          : 0.28 + 0.28 * Math.sin(t * f.speed + f.phase);
         ctx.save();
         ctx.globalAlpha = alpha;
-        ctx.shadowBlur = f.glow * (dark ? 2.5 : 1.2);
+        ctx.shadowBlur = f.glow * (dark ? 2.8 : 1.6);
         ctx.shadowColor = f.color;
         ctx.beginPath();
         ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
@@ -141,6 +262,28 @@ function FirefliesCanvas({ dark }: { dark: boolean }) {
         ctx.fill();
         ctx.restore();
       });
+
+      // Dibujar y actualizar chispas de la explosión
+      sparks = sparks.filter(s => s.life < s.maxLife);
+      sparks.forEach(s => {
+        s.life += 1;
+        s.x += s.vx;
+        s.y += s.vy;
+        s.vx *= 0.94;
+        s.vy *= 0.94;
+        const progress = s.life / s.maxLife;
+        const alpha = 1 - progress;
+        ctx.save();
+        ctx.globalAlpha = Math.max(alpha, 0);
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = s.color;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r * (1 - progress * 0.5), 0, Math.PI * 2);
+        ctx.fillStyle = s.color;
+        ctx.fill();
+        ctx.restore();
+      });
+
       animRef.current = requestAnimationFrame(draw);
     };
     draw();
@@ -148,6 +291,9 @@ function FirefliesCanvas({ dark }: { dark: boolean }) {
     return () => {
       cancelAnimationFrame(animRef.current);
       window.removeEventListener('resize', resize);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointerleave', onPointerLeave);
     };
   }, [dark]);
 
@@ -155,7 +301,7 @@ function FirefliesCanvas({ dark }: { dark: boolean }) {
     <canvas
       ref={canvasRef}
       className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ zIndex: 0 }}
+      style={{ zIndex: 1 }}
     />
   );
 }
@@ -319,6 +465,7 @@ export default function ChatPage() {
 
       {/* ── ÁREA DE MENSAJES (con canvas de fondo) ─────────────────────────── */}
       <main className="flex-1 overflow-hidden relative">
+        <CosmicBackdrop dark={dark} />
         <FirefliesCanvas dark={dark} />
         <div className="relative z-10 h-full overflow-y-auto">
           <div className="px-4 py-5 space-y-5 max-w-3xl w-full mx-auto">
