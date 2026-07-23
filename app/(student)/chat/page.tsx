@@ -153,10 +153,11 @@ function FirefliesCanvas({ dark }: { dark: boolean }) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const resize = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-    };
+    // ✅ CÓDIGO CORREGIDO (Seguro ante renderizado inicial)
+const resize = () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+};
     resize();
     window.addEventListener('resize', resize);
 
