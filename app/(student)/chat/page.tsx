@@ -461,54 +461,53 @@ export default function ChatPage() {
       `}</style>
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <header className="relative shrink-0 flex items-center gap-0 px-4 sm:px-6 z-20 shadow-xl"
-        style={{ background: 'linear-gradient(100deg,#002B49 0%,#0B2545 60%,#0d3060 100%)', minHeight: '64px' }}>
+      <header className="relative shrink-0 flex items-center gap-3 px-4 sm:px-6 z-20"
+        style={{
+          background: dark ? 'rgba(15, 23, 42, 0.75)' : 'rgba(255, 255, 255, 0.75)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderBottom: dark ? '1px solid rgba(30,41,59,0.5)' : '1px solid rgba(226,232,240,0.5)',
+          minHeight: '64px',
+          transition: 'background .4s, border-color .4s',
+        }}>
 
         {/* Logo UCSS */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="w-9 h-9 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-ucss.png" alt="UCSS" className="w-8 h-8 object-contain"
-              onError={e => { (e.target as HTMLImageElement).replaceWith((() => { const d = document.createElementNS('http://www.w3.org/2000/svg','svg'); return d; })()); }} />
-          </div>
-          <div className="hidden sm:block">
-            <p className="text-white font-bold text-[11px] leading-none tracking-wide">UCSS</p>
-            <p className="text-white/50 text-[9px] leading-none mt-0.5 tracking-wider uppercase">Institucional</p>
-          </div>
+        <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 flex items-center justify-center"
+          style={{ background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.05)' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-ucss.png" alt="UCSS" className="w-6 h-6 object-contain"
+            onError={e => { (e.target as HTMLImageElement).replaceWith((() => { const d = document.createElementNS('http://www.w3.org/2000/svg','svg'); return d; })()); }} />
         </div>
 
-        {/* Divisor */}
-        <div className="w-px h-8 mx-4 shrink-0" style={{ background: 'rgba(0,163,224,.35)' }}/>
-
         {/* Avatar + nombre */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <div className="relative shrink-0">
-            <div className="drop-shadow-lg"><UccsitoAvatar size={44} /></div>
-            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-[#002B49] rounded-full">
-              <span className="ping-ring absolute inset-0 rounded-full bg-green-400"/>
-            </span>
+            <UccsitoAvatar size={36} />
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 rounded-full"
+              style={{ border: `2px solid ${dark ? '#0f172a' : '#ffffff'}` }} />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="font-extrabold text-white text-base leading-none truncate">uccsito</h1>
-              <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wider"
-                style={{ background: 'rgba(0,163,224,.25)', color: '#7dd3fc', border: '1px solid rgba(0,163,224,.3)' }}>IA</span>
-            </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" style={{ boxShadow: '0 0 4px #4ade80' }}/>
-              <p className="text-[11px] truncate" style={{ color: 'rgba(125,211,252,.85)' }}>En línea · Asistente Virtual 24/7</p>
+            <h1 className="font-bold text-base leading-none truncate"
+              style={{ color: dark ? '#f8fafc' : '#0f172a' }}>uccsito</h1>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+              <p className="text-[11px] truncate" style={{ color: dark ? '#94a3b8' : '#64748b' }}>
+                UCSS · Comunidad Académica
+              </p>
             </div>
           </div>
         </div>
 
         {/* Toggle dark mode */}
         <button onClick={() => setDark(d => !d)}
-          className="shrink-0 ml-3 p-2 rounded-xl transition-all hover:scale-110 active:scale-95"
-          style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }}
+          className="shrink-0 p-2 rounded-full transition-all hover:scale-110 active:scale-95"
+          style={{ background: 'transparent' }}
+          onMouseEnter={e => { e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
           title={dark ? 'Modo claro' : 'Modo oscuro'}>
           {dark
-            ? <Sun className="w-4 h-4 text-yellow-300" />
-            : <Moon className="w-4 h-4 text-sky-200" />}
+            ? <Sun className="w-4 h-4" style={{ color: '#fbbf24' }} />
+            : <Moon className="w-4 h-4" style={{ color: '#475569' }} />}
         </button>
       </header>
 
