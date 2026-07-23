@@ -78,9 +78,9 @@ function UccsitoAvatar({ size = 40 }: { size?: number }) {
 function TypingIndicator({ dark }: { dark: boolean }) {
   return (
     <div className="flex gap-3 items-end">
-      <div className="shrink-0 drop-shadow-md"><UccsitoAvatar size={34} /></div>
-      <div className={`px-4 py-3 rounded-2xl rounded-bl-none flex items-center gap-1.5 ${dark ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-slate-200'}`}
-        style={{boxShadow: dark ? '0 2px 12px rgba(0,0,0,0.3)' : '0 2px 12px rgba(0,43,73,0.08)'}}>
+      <div className="shrink-0"><UccsitoAvatar size={32} /></div>
+      <div className="px-4 py-3 rounded-[22px] rounded-bl-[6px] flex items-center gap-1.5"
+        style={{ background: dark ? '#1e293b' : '#f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
         {[0,150,300].map(d => (
           <span key={d} className="w-2 h-2 rounded-full animate-bounce" style={{background:'#00A3E0', animationDelay:`${d}ms`}}/>
         ))}
@@ -430,8 +430,8 @@ export default function ChatPage() {
 
   // ── Colores según modo ──────────────────────────────────────────────────────
   const bg       = dark ? '#0B132B' : '#E0F2FE';
-  const bubble   = dark ? { bg: '#1E293B', border: '#334155', text: '#F8FAFC' }
-                        : { bg: '#ffffff', border: '#E2E8F0', text: '#334155' };
+  const bubble   = dark ? { bg: '#1e293b', border: '#334155', text: '#f8fafc' }
+                        : { bg: '#f1f5f9', border: '#e2e8f0', text: '#0f172a' };
   const glassBar = dark
     ? 'rgba(30,41,59,0.85)'
     : 'rgba(255,255,255,0.82)';
@@ -520,17 +520,17 @@ export default function ChatPage() {
             {messages.map((msg, i) => (
               <div key={i} className={`flex gap-3 items-end ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                 {msg.role === 'assistant'
-                  ? <div className="shrink-0 drop-shadow-md"><UccsitoAvatar size={34} /></div>
+                  ? <div className="shrink-0"><UccsitoAvatar size={32} /></div>
                   : <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
-                      style={{ background: 'linear-gradient(135deg,#002B49,#00A3E0)' }}>Tú</div>}
+                      style={{ background: '#0084FF' }}>Tú</div>}
 
                 <div className={`max-w-[88%] md:max-w-[75%] px-4 py-3 text-sm leading-relaxed ${
-                  msg.role === 'assistant' ? 'rounded-2xl rounded-bl-none' : 'text-white rounded-2xl rounded-br-none'
+                  msg.role === 'assistant' ? 'rounded-[22px] rounded-bl-[6px]' : 'text-white rounded-[22px] rounded-br-[6px]'
                 }`} style={msg.role === 'assistant'
-                  ? { background: bubble.bg, border: `1px solid ${bubble.border}`, color: bubble.text,
-                      boxShadow: dark ? '0 4px 24px rgba(0,0,0,0.35)' : '0 2px 16px rgba(0,43,73,0.08)', transition: 'all .3s' }
-                  : { background: 'linear-gradient(135deg,#002B49 0%,#00A3E0 100%)',
-                      boxShadow: '0 4px 16px rgba(0,43,73,0.25)' }}>
+                  ? { background: bubble.bg, color: bubble.text,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)', transition: 'all .3s' }
+                  : { background: '#0084FF',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
                   <span className="chat-bubble" dangerouslySetInnerHTML={{ __html: fmt(msg.content) }} />
                 </div>
               </div>
