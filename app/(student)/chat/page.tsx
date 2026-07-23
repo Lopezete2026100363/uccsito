@@ -93,11 +93,11 @@ function TypingIndicator({ dark }: { dark: boolean }) {
 function CosmicBackdrop({ dark }: { dark: boolean }) {
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
-      {/* Base profunda azul-noche */}
+      {/* Base profunda azul-noche / pastel rico según el modo */}
       <div className="absolute inset-0" style={{
         background: dark
           ? 'radial-gradient(ellipse 140% 100% at 50% -10%, #101c3f 0%, #0B132B 40%, #080C1A 100%)'
-          : 'linear-gradient(180deg,#eef4fb 0%,#e3edf9 50%,#d9e6f7 100%)',
+          : 'linear-gradient(135deg,#E0F2FE 0%,#EAF3FE 35%,#FDF3D6 70%,#FEF3C7 100%)',
         transition: 'background .6s',
       }} />
 
@@ -107,9 +107,9 @@ function CosmicBackdrop({ dark }: { dark: boolean }) {
         width: '85vmax', height: '85vmax',
         background: 'radial-gradient(circle, rgba(255,221,150,.75) 0%, rgba(251,191,36,.38) 24%, rgba(217,119,6,.16) 44%, rgba(217,119,6,0) 68%)',
         filter: 'blur(90px)',
-        opacity: dark ? 1 : 0.5,
+        opacity: dark ? 1 : 0.9,
         transition: 'opacity .6s',
-        mixBlendMode: dark ? 'screen' : 'normal',
+        mixBlendMode: dark ? 'screen' : 'multiply',
       }} />
 
       {/* Resplandor lunar — nebulosa fría difuminada, lado derecho */}
@@ -118,9 +118,9 @@ function CosmicBackdrop({ dark }: { dark: boolean }) {
         width: '90vmax', height: '90vmax',
         background: 'radial-gradient(circle, rgba(196,224,255,.6) 0%, rgba(103,181,255,.3) 26%, rgba(56,90,150,.14) 48%, rgba(56,90,150,0) 70%)',
         filter: 'blur(100px)',
-        opacity: dark ? 0.95 : 0.4,
+        opacity: dark ? 0.95 : 0.8,
         transition: 'opacity .6s',
-        mixBlendMode: dark ? 'screen' : 'normal',
+        mixBlendMode: dark ? 'screen' : 'multiply',
       }} />
 
       {/* Aura cian adicional que le da profundidad al centro-derecha */}
@@ -129,13 +129,13 @@ function CosmicBackdrop({ dark }: { dark: boolean }) {
         width: '46vmax', height: '46vmax',
         background: 'radial-gradient(circle, rgba(34,211,238,.16) 0%, rgba(34,211,238,0) 65%)',
         filter: 'blur(70px)',
-        opacity: dark ? 0.85 : 0.2,
+        opacity: dark ? 0.85 : 0.35,
       }} />
 
       {/* Viñeta suave para dar profundidad en los bordes */}
       <div className="absolute inset-0" style={{
         background: 'radial-gradient(ellipse at 50% 55%, transparent 35%, rgba(3,6,16,.4) 100%)',
-        opacity: dark ? 0.6 : 0.1,
+        opacity: dark ? 0.6 : 0.08,
       }} />
     </div>
   );
@@ -160,8 +160,10 @@ function FirefliesCanvas({ dark }: { dark: boolean }) {
     resize();
     window.addEventListener('resize', resize);
 
-    // Paleta neón: cian, dorado, violeta
-    const palette = ['#22d3ee', '#7dd3fc', '#fbbf24', '#facc15', '#a78bfa', '#c084fc', '#f9a8d4'];
+    // Paleta según el modo: neón intenso en oscuro, saturada y bien definida en claro
+    const palette = dark
+      ? ['#22d3ee', '#7dd3fc', '#fbbf24', '#facc15', '#a78bfa', '#c084fc', '#f9a8d4']
+      : ['#1d4ed8', '#2563eb', '#d97706', '#b45309', '#7c3aed', '#9333ea', '#0891b2'];
 
     const count = 60;
     type Fly = {
@@ -241,41 +243,61 @@ function FirefliesCanvas({ dark }: { dark: boolean }) {
     let t = 0;
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = dark ? 'lighter' : 'source-over';
       t += 1;
 
       const { x: px, y: py, active } = pointerRef.current;
+      const REPEL_R = 46;
+      const ATTRACT_R = 230;
+      const MAX_SPEED = 2.6;
 
       flies.forEach(f => {
-        // Atracción cósmica hacia el puntero
+        // Vagabundeo ambiental: nunca se quedan quietas, incluso sin interacción
+        f.vx += Math.sin(t * 0.0021 + f.phase) * 0.012;
+        f.vy += Math.cos(t * 0.0025 + f.phase * 1.3) * 0.012;
+
+        // Atracción / repulsión fluida hacia el puntero
         if (active) {
           const dx = px - f.x;
           const dy = py - f.y;
-          const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
-          const pull = Math.min(140 / dist, 1) * 0.18;
-          f.vx += (dx / dist) * pull;
-          f.vy += (dy / dist) * pull;
-          f.r = f.baseR + Math.max(0, (160 - dist) / 160) * 2.2;
+          const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 0.001);
+          if (dist < REPEL_R) {
+            const force = (1 - dist / REPEL_R) * 0.85;
+            f.vx -= (dx / dist) * force;
+            f.vy -= (dy / dist) * force;
+          } else if (dist < ATTRACT_R) {
+            const force = (1 - dist / ATTRACT_R) * 0.2;
+            f.vx += (dx / dist) * force;
+            f.vy += (dy / dist) * force;
+          }
+          f.r = f.baseR + Math.max(0, (ATTRACT_R - dist) / ATTRACT_R) * 2.2;
         } else {
           f.r += (f.baseR - f.r) * 0.08;
         }
 
-        // Fricción para que no aceleren indefinidamente
-        f.vx *= 0.965;
-        f.vy *= 0.965;
+        // Fricción suave (el vagabundeo evita que lleguen a detenerse del todo)
+        f.vx *= 0.975;
+        f.vy *= 0.975;
+
+        // Límite de velocidad máxima
+        const sp = Math.hypot(f.vx, f.vy);
+        if (sp > MAX_SPEED) { f.vx = (f.vx / sp) * MAX_SPEED; f.vy = (f.vy / sp) * MAX_SPEED; }
 
         f.x += f.vx;
         f.y += f.vy;
-        if (f.x < 0) f.x = canvas.width;
-        if (f.x > canvas.width) f.x = 0;
-        if (f.y < 0) f.y = canvas.height;
-        if (f.y > canvas.height) f.y = 0;
+
+        // Rebote suave en los bordes (con leve pérdida de energía, no teletransporte)
+        if (f.x < 0) { f.x = 0; f.vx *= -0.85; }
+        if (f.x > canvas.width) { f.x = canvas.width; f.vx *= -0.85; }
+        if (f.y < 0) { f.y = 0; f.vy *= -0.85; }
+        if (f.y > canvas.height) { f.y = canvas.height; f.vy *= -0.85; }
 
         const alpha = dark
           ? 0.55 + 0.45 * Math.sin(t * f.speed + f.phase)
-          : 0.28 + 0.28 * Math.sin(t * f.speed + f.phase);
+          : 0.55 + 0.35 * Math.sin(t * f.speed + f.phase);
         ctx.save();
         ctx.globalAlpha = alpha;
-        ctx.shadowBlur = f.glow * (dark ? 2.8 : 1.6);
+        ctx.shadowBlur = f.glow * (dark ? 2.8 : 2.2);
         ctx.shadowColor = f.color;
         ctx.beginPath();
         ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
@@ -323,7 +345,7 @@ function FirefliesCanvas({ dark }: { dark: boolean }) {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 1 }}
+      style={{ zIndex: 1, width: '100vw', height: '100vh' }}
     />
   );
 }
@@ -406,7 +428,7 @@ export default function ChatPage() {
   };
 
   // ── Colores según modo ──────────────────────────────────────────────────────
-  const bg       = dark ? '#0B132B' : '#F4F7FA';
+  const bg       = dark ? '#0B132B' : '#E0F2FE';
   const bubble   = dark ? { bg: '#1E293B', border: '#334155', text: '#F8FAFC' }
                         : { bg: '#ffffff', border: '#E2E8F0', text: '#334155' };
   const glassBar = dark
