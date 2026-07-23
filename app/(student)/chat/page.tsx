@@ -58,23 +58,13 @@ function fmt(text: string): string {
 // ── Avatar ────────────────────────────────────────────────────────────────────
 function UccsitoAvatar({ size = 40 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 80 80" fill="none">
-      <circle cx="40" cy="40" r="40" fill="#00A3E0"/>
-      <rect x="18" y="22" width="44" height="6" rx="3" fill="white"/>
-      <rect x="36" y="16" width="8" height="10" rx="2" fill="white"/>
-      <line x1="58" y1="25" x2="62" y2="34" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-      <circle cx="62" cy="36" r="3" fill="#fbbf24"/>
-      <circle cx="40" cy="46" r="16" fill="#fde68a"/>
-      <circle cx="34" cy="43" r="2.5" fill="#0B2545"/>
-      <circle cx="46" cy="43" r="2.5" fill="#0B2545"/>
-      <circle cx="35" cy="42" r="0.8" fill="white"/>
-      <circle cx="47" cy="42" r="0.8" fill="white"/>
-      <path d="M33 50 Q40 56 47 50" stroke="#0B2545" strokeWidth="2" strokeLinecap="round" fill="none"/>
-      <circle cx="30" cy="49" r="3" fill="#fca5a5" opacity="0.6"/>
-      <circle cx="50" cy="49" r="3" fill="#fca5a5" opacity="0.6"/>
-      <path d="M24 68 Q28 58 40 56 Q52 58 56 68" fill="#0B2545"/>
-      <path d="M32 62 L40 70 L48 62" fill="white" opacity="0.3"/>
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/uccsito-avatar.png"
+      alt="Uccsito"
+      className="rounded-full object-cover"
+      style={{ width: size, height: size }}
+    />
   );
 }
 
