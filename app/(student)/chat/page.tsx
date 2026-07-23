@@ -39,6 +39,12 @@ function playSound(type: 'send' | 'receive') {
   } catch {}
 }
 
+// ── Disparo global de ráfagas cósmicas (usado por hover en Acceso Rápido) ────
+function fireCosmicBurst(x: number, y: number, n = 26) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('uccsito-burst', { detail: { x, y, n } }));
+}
+
 // ── fmt ───────────────────────────────────────────────────────────────────────
 function fmt(text: string): string {
   let html = text
@@ -83,46 +89,53 @@ function TypingIndicator({ dark }: { dark: boolean }) {
   );
 }
 
-// ── Fondo Cósmico Sol / Luna ────────────────────────────────────────────────
+// ── Fondo Cósmico Sol / Luna (resplandor atmosférico, no discos recortados) ──
 function CosmicBackdrop({ dark }: { dark: boolean }) {
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
-      {/* Base nocturna/azulada */}
+    <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
+      {/* Base profunda azul-noche */}
       <div className="absolute inset-0" style={{
         background: dark
-          ? 'linear-gradient(135deg,#020617 0%,#050b1f 45%,#0a1830 100%)'
-          : 'linear-gradient(135deg,#eaf3fb 0%,#dbeafe 45%,#e0eefc 100%)',
+          ? 'radial-gradient(ellipse 140% 100% at 50% -10%, #101c3f 0%, #0B132B 40%, #080C1A 100%)'
+          : 'linear-gradient(180deg,#eef4fb 0%,#e3edf9 50%,#d9e6f7 100%)',
         transition: 'background .6s',
       }} />
 
-      {/* Sol — lado izquierdo */}
-      <div className="absolute rounded-full" style={{
-        left: '-14%', top: '-10%',
-        width: '58vmin', height: '58vmin',
-        background: 'radial-gradient(circle at 42% 42%, #fff7d6 0%, #ffd76a 22%, #fbbf24 45%, #f59e0b 65%, rgba(245,158,11,0) 78%)',
-        filter: dark ? 'brightness(1.15) saturate(1.25)' : 'brightness(1.05)',
-        opacity: dark ? 0.95 : 0.85,
-        boxShadow: '0 0 160px 60px rgba(251,191,36,.35)',
+      {/* Resplandor solar — nebulosa cálida difuminada, lado izquierdo */}
+      <div className="absolute" style={{
+        left: '-22%', top: '-25%',
+        width: '85vmax', height: '85vmax',
+        background: 'radial-gradient(circle, rgba(255,221,150,.75) 0%, rgba(251,191,36,.38) 24%, rgba(217,119,6,.16) 44%, rgba(217,119,6,0) 68%)',
+        filter: 'blur(90px)',
+        opacity: dark ? 1 : 0.5,
         transition: 'opacity .6s',
+        mixBlendMode: dark ? 'screen' : 'normal',
       }} />
 
-      {/* Luna — lado derecho */}
-      <div className="absolute rounded-full" style={{
-        right: '-12%', bottom: '-12%',
-        width: '52vmin', height: '52vmin',
-        background: 'radial-gradient(circle at 60% 38%, #f4f8ff 0%, #cfe0f5 20%, #9fb8d9 42%, #5f7ba3 62%, rgba(95,123,163,0) 78%)',
-        filter: 'saturate(1.1)',
-        opacity: dark ? 0.9 : 0.55,
-        boxShadow: '0 0 140px 50px rgba(148,180,224,.3)',
+      {/* Resplandor lunar — nebulosa fría difuminada, lado derecho */}
+      <div className="absolute" style={{
+        right: '-24%', bottom: '-28%',
+        width: '90vmax', height: '90vmax',
+        background: 'radial-gradient(circle, rgba(196,224,255,.6) 0%, rgba(103,181,255,.3) 26%, rgba(56,90,150,.14) 48%, rgba(56,90,150,0) 70%)',
+        filter: 'blur(100px)',
+        opacity: dark ? 0.95 : 0.4,
         transition: 'opacity .6s',
+        mixBlendMode: dark ? 'screen' : 'normal',
       }} />
 
-      {/* Textura sutil de cráteres en la luna */}
-      <div className="absolute rounded-full" style={{
-        right: '-2%', bottom: '4%',
-        width: '30vmin', height: '30vmin',
-        background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,.25) 0%, transparent 40%), radial-gradient(circle at 65% 60%, rgba(90,110,140,.3) 0%, transparent 35%)',
-        opacity: 0.7,
+      {/* Aura cian adicional que le da profundidad al centro-derecha */}
+      <div className="absolute" style={{
+        right: '8%', top: '6%',
+        width: '46vmax', height: '46vmax',
+        background: 'radial-gradient(circle, rgba(34,211,238,.16) 0%, rgba(34,211,238,0) 65%)',
+        filter: 'blur(70px)',
+        opacity: dark ? 0.85 : 0.2,
+      }} />
+
+      {/* Viñeta suave para dar profundidad en los bordes */}
+      <div className="absolute inset-0" style={{
+        background: 'radial-gradient(ellipse at 50% 55%, transparent 35%, rgba(3,6,16,.4) 100%)',
+        opacity: dark ? 0.6 : 0.1,
       }} />
     </div>
   );
@@ -213,9 +226,17 @@ function FirefliesCanvas({ dark }: { dark: boolean }) {
     };
     const onPointerLeave = () => { pointerRef.current.active = false; };
 
+    const onCosmicBurst = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { x?: number; y?: number; n?: number } | undefined;
+      if (!detail || typeof detail.x !== 'number' || typeof detail.y !== 'number') return;
+      spawnBurst(detail.x, detail.y, detail.n ?? 26);
+      pointerRef.current = { x: detail.x, y: detail.y, active: true };
+    };
+
     window.addEventListener('pointermove', onPointerMove, { passive: true });
     window.addEventListener('pointerdown', onPointerDown, { passive: true });
     window.addEventListener('pointerleave', onPointerLeave);
+    window.addEventListener('uccsito-burst', onCosmicBurst as EventListener);
 
     let t = 0;
     const draw = () => {
@@ -294,13 +315,14 @@ function FirefliesCanvas({ dark }: { dark: boolean }) {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointerleave', onPointerLeave);
+      window.removeEventListener('uccsito-burst', onCosmicBurst as EventListener);
     };
   }, [dark]);
 
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none"
+      className="fixed inset-0 pointer-events-none"
       style={{ zIndex: 1 }}
     />
   );
@@ -384,7 +406,7 @@ export default function ChatPage() {
   };
 
   // ── Colores según modo ──────────────────────────────────────────────────────
-  const bg       = dark ? '#0F172A' : '#F4F7FA';
+  const bg       = dark ? '#0B132B' : '#F4F7FA';
   const bubble   = dark ? { bg: '#1E293B', border: '#334155', text: '#F8FAFC' }
                         : { bg: '#ffffff', border: '#E2E8F0', text: '#334155' };
   const glassBar = dark
@@ -392,7 +414,11 @@ export default function ChatPage() {
     : 'rgba(255,255,255,0.82)';
 
   return (
-    <div className="flex flex-col h-screen font-sans overflow-hidden" style={{ background: bg, transition: 'background 0.4s' }}>
+    <div className="relative flex flex-col h-screen font-sans overflow-hidden" style={{ background: bg, transition: 'background 0.4s' }}>
+
+      {/* ── FONDO CÓSMICO GLOBAL (cubre toda la app, no solo el chat) ───────── */}
+      <CosmicBackdrop dark={dark} />
+      <FirefliesCanvas dark={dark} />
 
       <style>{`
         .chat-img { border-radius:.75rem; max-width:100%; height:auto; margin-top:.5rem; display:block; box-shadow:0 4px 16px rgba(0,0,0,0.15); }
@@ -412,7 +438,7 @@ export default function ChatPage() {
       `}</style>
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <header className="shrink-0 flex items-center gap-0 px-4 sm:px-6 z-20 shadow-xl"
+      <header className="relative shrink-0 flex items-center gap-0 px-4 sm:px-6 z-20 shadow-xl"
         style={{ background: 'linear-gradient(100deg,#002B49 0%,#0B2545 60%,#0d3060 100%)', minHeight: '64px' }}>
 
         {/* Logo UCSS */}
@@ -463,11 +489,9 @@ export default function ChatPage() {
         </button>
       </header>
 
-      {/* ── ÁREA DE MENSAJES (con canvas de fondo) ─────────────────────────── */}
-      <main className="flex-1 overflow-hidden relative">
-        <CosmicBackdrop dark={dark} />
-        <FirefliesCanvas dark={dark} />
-        <div className="relative z-10 h-full overflow-y-auto">
+      {/* ── ÁREA DE MENSAJES ─────────────────────────────────────────────────── */}
+      <main className="relative z-10 flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto">
           <div className="px-4 py-5 space-y-5 max-w-3xl w-full mx-auto">
 
             {messages.map((msg, i) => (
@@ -502,6 +526,10 @@ export default function ChatPage() {
           <div className="flex flex-wrap gap-2">
             {QUICK_CHIPS.map((chip, i) => (
               <button key={i} onClick={() => sendMessage(chip.query)}
+                onMouseEnter={e => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  fireCosmicBurst(r.left + r.width / 2, r.top + r.height / 2, 30);
+                }}
                 className="chip text-xs font-semibold px-3 py-1.5 rounded-full"
                 style={{
                   background: dark ? '#1E293B' : 'white',
