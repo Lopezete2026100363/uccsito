@@ -1,282 +1,142 @@
 "use client";
 
 /**
- * Buzón de Consultas y Preguntas Frecuentes UCSS
+ * Banco de Dudas para los Nuevos Cachimbos UCSS
  * Ruta: app/aportes/page.tsx   (Next.js App Router · TypeScript)
  *
  * Requisitos:
  *   npm i lucide-react
- *   Tailwind con dark mode por clase:
- *     v3 → tailwind.config.ts: darkMode: "class"
- *     v4 → globals.css: @custom-variant dark (&:where(.dark, .dark *));
+ *
+ * Endpoint (Google Apps Script desplegado como aplicación web):
+ *   .env.local  →  NEXT_PUBLIC_FORM_ENDPOINT=https://script.google.com/macros/s/AKfycb.../exec
+ *   Si no defines la variable, se usa FALLBACK_ENDPOINT de abajo.
+ *
+ * Nota CORS: Apps Script NO responde a peticiones preflight (OPTIONS). Por eso
+ * enviamos el JSON con Content-Type "text/plain;charset=utf-8", que el navegador
+ * considera una "simple request" y manda directo, sin preflight.
  */
 
 import {
-  useEffect,
-  useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type ChangeEvent,
   type FormEvent,
-  type ReactNode,
 } from "react";
 import {
-  GraduationCap,
-  ClipboardCheck,
-  Wallet,
-  FileStack,
-  Scale,
-  CalendarClock,
-  Sparkles,
-  MessagesSquare,
-  ChevronDown,
-  Check,
   AlertCircle,
-  Building2,
-  UserRound,
-  Send,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  FileBadge,
+  GraduationCap,
+  HeartHandshake,
+  LaptopMinimal,
   Loader2,
-  PartyPopper,
+  MessagesSquare,
+  RefreshCw,
   RotateCcw,
-  Eye,
-  Copy,
-  ShieldAlert,
-  Sun,
-  Moon,
-  type LucideIcon,
+  School,
+  Send,
+  Sparkles,
+  WalletCards,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-/* ---------------------------------- tipos --------------------------------- */
+/* ------------------------------- config envío ------------------------------ */
 
-type Categoria =
-  | "Matrícula"
-  | "Becas y Pagos"
-  | "Trámites / Secretaría"
-  | "Reglamentos"
-  | "Aulas / Horarios"
-  | "Otro";
+/** Pega aquí tu URL /exec o define NEXT_PUBLIC_FORM_ENDPOINT en .env.local */
+const FALLBACK_ENDPOINT =
+  "https://script.google.com/macros/s/PEGA_AQUI_TU_ID_DE_DESPLIEGUE/exec";
 
-interface OpcionCategoria {
-  value: Categoria;
-  icon: LucideIcon;
+const FORM_ENDPOINT: string =
+  process.env.NEXT_PUBLIC_FORM_ENDPOINT ?? FALLBACK_ENDPOINT;
+
+/** Payload exacto que llega a tu Google Sheet. */
+interface AportePayload {
+  categoria: string;
+  duda: string;
+  fecha: string; // legible: 26/07/2026, 17:20:03
+  timestamp: string; // ISO 8601 para ordenar en la hoja
+  origen: string;
 }
 
-type EstadoCopia = "idle" | "ok" | "error";
+/* -------------------------------- categorías ------------------------------- */
 
-/** Permite pasar la custom property --i al atributo style sin pelear con TS. */
-type EstiloConIndice = CSSProperties & { "--i"?: number };
+const CATEGORIAS = [
+  { value: "Primeros Pasos / Cachimbo", icon: School },
+  { value: "Trámites y Carnés", icon: FileBadge },
+  { value: "Matrícula y Horarios", icon: CalendarDays },
+  { value: "Pagos y Pensiones", icon: WalletCards },
+  { value: "Plataformas Virtuales", icon: LaptopMinimal },
+  { value: "Vida Universitaria / Aulas", icon: GraduationCap },
+] as const;
 
-const WHATSAPP_NUMBER = "51944467083" as const;
-const SIN_RESPUESTA = "(Por resolver / Dejada en blanco)" as const;
+type Categoria = (typeof CATEGORIAS)[number]["value"];
+type Estado = "form" | "sending" | "success" | "error";
 
-const CATEGORIAS: readonly OpcionCategoria[] = [
-  { value: "Matrícula", icon: ClipboardCheck },
-  { value: "Becas y Pagos", icon: Wallet },
-  { value: "Trámites / Secretaría", icon: FileStack },
-  { value: "Reglamentos", icon: Scale },
-  { value: "Aulas / Horarios", icon: CalendarClock },
-  { value: "Otro", icon: Sparkles },
-];
-
-/* ---------------------------------- tema --------------------------------- */
-
-function useTheme(): { dark: boolean; toggle: () => void } {
-  const [dark, setDark] = useState<boolean>(false);
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem("ucss-buzon-theme");
-    const prefers = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const next = saved ? saved === "dark" : prefers;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-  }, []);
-
-  const toggle = (): void => {
-    setDark((prev) => {
-      const next = !prev;
-      document.documentElement.classList.toggle("dark", next);
-      window.localStorage.setItem("ucss-buzon-theme", next ? "dark" : "light");
-      return next;
-    });
-  };
-
-  return { dark, toggle };
-}
-
-/* ------------------------------- portapapeles ------------------------------ */
-
-async function copiarTexto(texto: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(texto);
-      return true;
-    }
-  } catch {
-    /* cae al método legacy */
-  }
-
-  try {
-    const area = document.createElement("textarea");
-    area.value = texto;
-    area.setAttribute("readonly", "");
-    area.style.position = "fixed";
-    area.style.top = "-9999px";
-    document.body.appendChild(area);
-    area.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(area);
-    return ok;
-  } catch {
-    return false;
-  }
-}
-
-/** Estado de copiado que se autolimpia a los 2.2 s. */
-function useCopiar(): {
-  estado: EstadoCopia;
-  copiar: (texto: string) => Promise<boolean>;
-} {
-  const [estado, setEstado] = useState<EstadoCopia>("idle");
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, []);
-
-  const copiar = async (texto: string): Promise<boolean> => {
-    const ok = await copiarTexto(texto);
-    setEstado(ok ? "ok" : "error");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setEstado("idle"), 2200);
-    return ok;
-  };
-
-  return { estado, copiar };
-}
-
-interface BotonCopiarProps {
-  texto: string;
-  className?: string;
-  etiqueta?: string;
-}
-
-function BotonCopiar({
-  texto,
-  className = "",
-  etiqueta = "Copiar mensaje",
-}: BotonCopiarProps) {
-  const { estado, copiar } = useCopiar();
-
-  const contenido: Record<EstadoCopia, [LucideIcon, string]> = {
-    idle: [Copy, etiqueta],
-    ok: [Check, "Copiado al portapapeles"],
-    error: [AlertCircle, "Cópialo manualmente arriba"],
-  };
-
-  const [Icono, label] = contenido[estado];
-
-  return (
-    <button
-      type="button"
-      onClick={() => void copiar(texto)}
-      aria-live="polite"
-      className={`inline-flex items-center justify-center gap-2 rounded-2xl border px-5 py-3 text-[0.875rem] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#00A3E0]/40 ${
-        estado === "ok"
-          ? "border-[#00A3E0]/45 bg-[#00A3E0]/12 text-[#00618c] dark:text-[#7FD8F7]"
-          : estado === "error"
-          ? "border-[#D4483B]/45 bg-[#D4483B]/[0.08] text-[#C0392B] dark:text-[#F2938A]"
-          : "border-[#002B49]/15 text-[#002B49]/75 hover:border-[#00A3E0]/60 hover:text-[#002B49] dark:border-white/15 dark:text-white/75 dark:hover:text-white"
-      } ${className}`}
-    >
-      <Icono size={15} strokeWidth={2.3} />
-      {label}
-    </button>
-  );
-}
-
-/* -------------------------------- dropdown -------------------------------- */
+/* --------------------------------- select --------------------------------- */
 
 interface CategoriaSelectProps {
   value: Categoria;
   onChange: (value: Categoria) => void;
+  disabled?: boolean;
 }
 
-function CategoriaSelect({ value, onChange }: CategoriaSelectProps) {
-  const [open, setOpen] = useState<boolean>(false);
-  const boxRef = useRef<HTMLDivElement | null>(null);
-  const actual: OpcionCategoria =
-    CATEGORIAS.find((c) => c.value === value) ?? CATEGORIAS[0];
-  const ActualIcon = actual.icon;
-
-  useEffect(() => {
-    if (!open) return;
-
-    const onDocClick = (e: MouseEvent): void => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === "Escape") setOpen(false);
-    };
-
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+function CategoriaSelect({ value, onChange, disabled = false }: CategoriaSelectProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = CATEGORIAS.find((item) => item.value === value) ?? CATEGORIAS[0];
+  const SelectedIcon: LucideIcon = selected.icon;
 
   return (
-    <div ref={boxRef} className="relative">
+    <div ref={ref} className="relative">
       <button
         type="button"
+        disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className="group flex w-full items-center gap-3 rounded-2xl border border-[#002B49]/12 bg-white/70 px-4 py-3.5 text-left text-[0.9375rem] font-medium text-[#002B49] shadow-[0_1px_2px_rgba(0,43,73,0.05)] backdrop-blur-md transition-colors duration-150 hover:border-[#00A3E0]/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#00A3E0]/40 dark:border-white/10 dark:bg-white/[0.06] dark:text-[#E8F4FB] dark:hover:border-[#00A3E0]/60"
+        onClick={() => setOpen((current) => !current)}
+        onBlur={(event) => {
+          if (!ref.current?.contains(event.relatedTarget as Node | null)) setOpen(false);
+        }}
+        className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-slate-700/80 bg-slate-900/75 px-4 text-left text-sm font-medium text-slate-100 shadow-inner shadow-slate-950/20 transition hover:border-emerald-400/60 focus:outline-none focus:ring-2 focus:ring-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#00A3E0]/12 text-[#0083b8] dark:bg-[#00A3E0]/[0.18] dark:text-[#5CCBF2]">
-          <ActualIcon size={16} strokeWidth={2.1} />
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-400/10 text-emerald-300">
+          <SelectedIcon size={17} strokeWidth={2.1} />
         </span>
-        <span className="flex-1 truncate">{actual.value}</span>
+        <span className="flex-1 truncate">{selected.value}</span>
         <ChevronDown
           size={18}
-          className={`shrink-0 text-[#002B49]/40 transition-transform duration-200 dark:text-white/40 ${
-            open ? "rotate-180" : ""
-          }`}
+          className={`text-slate-500 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
 
       {open && (
         <ul
           role="listbox"
-          className="absolute z-30 mt-2 w-full origin-top overflow-hidden rounded-2xl border border-[#002B49]/10 bg-white/85 p-1.5 shadow-[0_18px_44px_-16px_rgba(0,43,73,0.35)] backdrop-blur-2xl [animation:ucss-pop_220ms_cubic-bezier(0.16,1,0.3,1)] dark:border-white/12 dark:bg-[#012338]/85"
+          className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 p-1.5 shadow-2xl shadow-slate-950/60"
         >
-          {CATEGORIAS.map((c) => {
-            const Icon = c.icon;
-            const activo = c.value === value;
+          {CATEGORIAS.map((item) => {
+            const Icon = item.icon;
+            const active = item.value === value;
             return (
-              <li key={c.value} role="option" aria-selected={activo}>
+              <li key={item.value} role="option" aria-selected={active}>
                 <button
                   type="button"
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
-                    onChange(c.value);
+                    onChange(item.value);
                     setOpen(false);
                   }}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[0.9375rem] transition-colors duration-150 ${
-                    activo
-                      ? "bg-[#00A3E0]/[0.14] font-semibold text-[#00507a] dark:text-[#7FD8F7]"
-                      : "font-medium text-[#002B49]/80 hover:bg-[#002B49]/[0.05] dark:text-white/75 dark:hover:bg-white/[0.07]"
+                  className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm transition ${
+                    active
+                      ? "bg-emerald-400/12 font-semibold text-emerald-300"
+                      : "text-slate-300 hover:bg-slate-800 hover:text-slate-50"
                   }`}
                 >
-                  <Icon size={16} strokeWidth={2.1} className="shrink-0 opacity-70" />
-                  <span className="flex-1 truncate">{c.value}</span>
-                  {activo && <Check size={15} strokeWidth={2.6} className="shrink-0" />}
+                  <Icon size={16} className="shrink-0 opacity-80" />
+                  <span className="flex-1">{item.value}</span>
+                  {active && <Check size={15} />}
                 </button>
               </li>
             );
@@ -287,454 +147,276 @@ function CategoriaSelect({ value, onChange }: CategoriaSelectProps) {
   );
 }
 
-/* --------------------------------- campos --------------------------------- */
+/* ---------------------------------- página --------------------------------- */
 
-interface EtiquetaProps {
-  children: ReactNode;
-  opcional?: boolean;
-}
+export default function BancoDeDudasPage() {
+  const [categoria, setCategoria] = useState<Categoria>(CATEGORIAS[0].value);
+  const [duda, setDuda] = useState("");
+  const [error, setError] = useState("");
+  const [estado, setEstado] = useState<Estado>("form");
 
-function Etiqueta({ children, opcional = false }: EtiquetaProps) {
-  return (
-    <span className="mb-2 flex items-baseline gap-2 text-[0.8125rem] font-semibold uppercase tracking-[0.09em] text-[#002B49]/65 dark:text-[#9FC4DA]">
-      {children}
-      {opcional && (
-        <span className="text-[0.6875rem] font-medium normal-case tracking-normal text-[#002B49]/40 dark:text-white/35">
-          opcional
-        </span>
-      )}
-    </span>
-  );
-}
+  const enviando = estado === "sending";
 
-const campoBase =
-  "w-full rounded-2xl border bg-white/65 px-4 py-3.5 text-[0.9375rem] leading-relaxed text-[#002B49] shadow-[0_1px_2px_rgba(0,43,73,0.05)] backdrop-blur-md transition-[border-color,box-shadow] duration-150 placeholder:text-[#002B49]/35 focus:outline-none focus:ring-[3px] focus:ring-[#00A3E0]/35 dark:bg-white/[0.06] dark:text-[#E8F4FB] dark:placeholder:text-white/30";
+  const construirPayload = (): AportePayload => {
+    const ahora = new Date();
+    return {
+      categoria,
+      duda: duda.trim(),
+      fecha: ahora.toLocaleString("es-PE", { timeZone: "America/Lima" }),
+      timestamp: ahora.toISOString(),
+      origen: "Banco de Dudas Cachimbos",
+    };
+  };
 
-function bordeCampo(error: boolean): string {
-  return error
-    ? "border-[#D4483B]/60 focus:border-[#D4483B] focus:ring-[#D4483B]/25 dark:border-[#F08379]/50"
-    : "border-[#002B49]/12 focus:border-[#00A3E0] dark:border-white/10";
-}
+  const enviar = async (): Promise<void> => {
+    setEstado("sending");
+    setError("");
 
-/* ------------------------------- pasos guía ------------------------------- */
+    try {
+      const respuesta = await fetch(FORM_ENDPOINT, {
+        method: "POST",
+        redirect: "follow",
+        // text/plain evita el preflight OPTIONS que Apps Script no sabe responder.
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(construirPayload()),
+      });
 
-const PASOS: ReadonlyArray<{ titulo: string; texto: ReactNode }> = [
-  {
-    titulo: "Escribe tu duda tal cual",
-    texto: "Sin tecnicismos. Como se la preguntarías a un compañero en el pasillo.",
-  },
-  {
-    titulo: "¿Sabes la respuesta? Compártela",
-    texto: (
-      <>
-        <strong className="font-semibold text-[#002B49] dark:text-[#E8F4FB]">
-          Si no la sabes, deja ese campo en blanco.
-        </strong>{" "}
-        Igual recibimos tu consulta y te respondemos.
-      </>
-    ),
-  },
-  {
-    titulo: "Revisa y envía",
-    texto: "Se abre WhatsApp con el mensaje ya listo. Solo pulsas enviar.",
-  },
-];
+      if (!respuesta.ok) throw new Error(`Respuesta ${respuesta.status}`);
 
-/* --------------------------------- página --------------------------------- */
+      const datos: unknown = await respuesta.json().catch(() => null);
+      const fallo =
+        typeof datos === "object" &&
+        datos !== null &&
+        "result" in datos &&
+        (datos as { result?: string }).result === "error";
 
-export default function BuzonConsultasPage() {
-  const { dark, toggle } = useTheme();
+      if (fallo) throw new Error("El script devolvió un error");
 
-  const [categoria, setCategoria] = useState<Categoria>("Matrícula");
-  const [pregunta, setPregunta] = useState<string>("");
-  const [respuesta, setRespuesta] = useState<string>("");
-  const [sede, setSede] = useState<string>("");
-  const [nombre, setNombre] = useState<string>("");
+      setEstado("success");
+    } catch {
+      setEstado("error");
+    }
+  };
 
-  const [errorPregunta, setErrorPregunta] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState<boolean>(false);
-  const [enviado, setEnviado] = useState<boolean>(false);
-  const [bloqueado, setBloqueado] = useState<boolean>(false);
-  const [verPreview, setVerPreview] = useState<boolean>(false);
-
-  const mensaje: string = useMemo(() => {
-    const solucionTxt = respuesta.trim() || SIN_RESPUESTA;
-    const sedeTxt = sede.trim() || "No especificada";
-    const nombreTxt = nombre.trim() || "Anónimo";
-    return [
-      "*Nueva Consulta UCSS* 🚀",
-      "",
-      `📌 *Categoría:* ${categoria}`,
-      `❓ *Pregunta:* ${pregunta.trim() || "..."}`,
-      `💡 *Solución:* ${solucionTxt}`,
-      `🏛️ *Sede/Facultad:* ${sedeTxt}`,
-      `👤 *Enviado por:* ${nombreTxt}`,
-    ].join("\n");
-  }, [categoria, pregunta, respuesta, sede, nombre]);
-
-  const enlaceWhatsApp = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-    mensaje
-  )}`;
-
-  const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
-    e.preventDefault();
-
-    // Única obligatoria: la pregunta. La respuesta puede quedar en blanco.
-    if (!pregunta.trim()) {
-      setErrorPregunta("Escribe la duda que quieres enviar.");
-      document.getElementById("pregunta")?.focus({ preventScroll: false });
+  const handleSubmit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    if (!duda.trim()) {
+      setError("Cuéntanos qué duda o enredo tuviste.");
+      document.getElementById("duda")?.focus();
       return;
     }
-    setErrorPregunta(null);
-
-    const ventana: Window | null = window.open(
-      enlaceWhatsApp,
-      "_blank",
-      "noopener,noreferrer"
-    );
-    const popupBloqueado =
-      !ventana || ventana.closed || typeof ventana.closed === "undefined";
-
-    // Si el navegador bloqueó la pestaña, dejamos la consulta en el portapapeles.
-    if (popupBloqueado) void copiarTexto(mensaje);
-    setBloqueado(popupBloqueado);
-
-    setEnviando(true);
-    setTimeout(() => {
-      setEnviando(false);
-      setEnviado(true);
-    }, 700);
+    void enviar();
   };
 
-  const reiniciar = (): void => {
-    setCategoria("Matrícula");
-    setPregunta("");
-    setRespuesta("");
-    setSede("");
-    setNombre("");
-    setErrorPregunta(null);
-    setVerPreview(false);
-    setBloqueado(false);
-    setEnviado(false);
+  const handleDudaChange = (event: ChangeEvent<HTMLTextAreaElement>): void => {
+    setDuda(event.target.value);
+    if (error) setError("");
+  };
+
+  const reset = (): void => {
+    setCategoria(CATEGORIAS[0].value);
+    setDuda("");
+    setError("");
+    setEstado("form");
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#EEF5FA] font-[var(--ucss-font)] text-[#002B49] antialiased transition-colors duration-300 dark:bg-[#00131F] dark:text-[#E8F4FB]">
+    <main className="min-h-screen overflow-hidden bg-slate-950 text-slate-100 antialiased">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap');
-        :root { --ucss-font: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; }
-        @keyframes ucss-pop { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
-        @keyframes ucss-fade { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
-        @keyframes ucss-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-        @keyframes ucss-drift { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(3%, -4%, 0) scale(1.06); } }
-        .ucss-rise { animation: ucss-rise 620ms cubic-bezier(0.16,1,0.3,1) both; animation-delay: calc(var(--i, 0) * 70ms); }
-        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+        @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes drift { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(2%, -3%, 0) scale(1.05); } }
+        .rise { animation: rise 650ms cubic-bezier(.16,1,.3,1) both; }
+        .drift { animation: drift 24s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
       `}</style>
 
-      {/* Fondo: lo que le da al cristal algo que difuminar */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div
-          className="absolute -left-[12%] top-[-18%] h-[46rem] w-[46rem] rounded-full bg-[#00A3E0] opacity-[0.28] blur-[130px] dark:opacity-[0.22]"
-          style={{ animation: "ucss-drift 26s ease-in-out infinite" }}
-        />
-        <div
-          className="absolute right-[-16%] top-[22%] h-[40rem] w-[40rem] rounded-full bg-[#002B49] opacity-[0.20] blur-[140px] dark:bg-[#0B5C8A] dark:opacity-[0.34]"
-          style={{ animation: "ucss-drift 34s ease-in-out infinite reverse" }}
-        />
-        <div
-          className="absolute bottom-[-24%] left-[28%] h-[34rem] w-[34rem] rounded-full bg-[#4FD1C5] opacity-[0.18] blur-[130px] dark:bg-[#00A3E0] dark:opacity-[0.14]"
-          style={{ animation: "ucss-drift 30s ease-in-out infinite" }}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.5] dark:opacity-[0.35]"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, rgba(0,43,73,0.055) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,43,73,0.055) 1px, transparent 1px)",
-            backgroundSize: "72px 72px",
-            maskImage:
-              "radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 100%)",
-            WebkitMaskImage:
-              "radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 100%)",
-          }}
-        />
+      <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="drift absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-emerald-500/10 blur-[120px]" />
+        <div className="absolute -right-40 top-1/3 h-[30rem] w-[30rem] rounded-full bg-violet-500/10 blur-[130px]" />
+        <div className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(rgba(148,163,184,.22)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,.22)_1px,transparent_1px)] [background-size:72px_72px] [mask-image:radial-gradient(ellipse_at_top,#000_15%,transparent_75%)]" />
       </div>
 
-      <div className="mx-auto w-full max-w-6xl px-5 pb-20 pt-7 sm:px-8 lg:pt-10">
-        {/* Barra superior */}
-        <header className="flex items-center justify-between gap-4">
+      <div className="relative mx-auto max-w-6xl px-5 py-7 sm:px-8 lg:py-10">
+        <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#002B49] text-white shadow-[0_8px_20px_-8px_rgba(0,43,73,0.7)] dark:bg-[#00A3E0] dark:text-[#00131F]">
-              <GraduationCap size={20} strokeWidth={2.2} />
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-950/30">
+              <GraduationCap size={22} strokeWidth={2.2} />
             </span>
-            <div className="leading-tight">
-              <p className="text-[0.9375rem] font-bold tracking-tight">UCSS</p>
-              <p className="text-[0.75rem] font-medium uppercase tracking-[0.12em] text-[#002B49]/50 dark:text-white/45">
-                Atención al estudiante
+            <div>
+              <p className="font-bold tracking-tight text-slate-100">UCSS</p>
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Comunidad cachimba
               </p>
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={toggle}
-            aria-label={dark ? "Activar modo claro" : "Activar modo oscuro"}
-            className="grid h-10 w-10 place-items-center rounded-full border border-[#002B49]/12 bg-white/60 text-[#002B49]/70 backdrop-blur-md transition-colors duration-150 hover:text-[#002B49] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#00A3E0]/40 dark:border-white/12 dark:bg-white/[0.07] dark:text-white/70 dark:hover:text-white"
-          >
-            {dark ? <Sun size={17} strokeWidth={2.1} /> : <Moon size={17} strokeWidth={2.1} />}
-          </button>
+          <span className="hidden items-center gap-2 rounded-full border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs font-medium text-slate-400 sm:inline-flex">
+            <HeartHandshake size={15} className="text-emerald-400" /> Entre estudiantes
+          </span>
         </header>
 
-        <div className="mt-14 grid items-start gap-14 lg:mt-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] lg:gap-20">
+        <div className="mt-16 grid items-start gap-14 lg:mt-24 lg:grid-cols-[minmax(0,1fr)_34rem] lg:gap-24">
           {/* Columna narrativa */}
-          <section className="max-w-[34rem]">
-            <p className="ucss-rise inline-flex items-center gap-2 rounded-full border border-[#00A3E0]/30 bg-[#00A3E0]/10 px-3.5 py-1.5 text-[0.75rem] font-semibold uppercase tracking-[0.1em] text-[#00618c] dark:border-[#00A3E0]/25 dark:text-[#7FD8F7]">
-              <MessagesSquare size={13} strokeWidth={2.4} />
-              Buzón abierto
-            </p>
-
-            <h1
-              className="ucss-rise mt-6 max-w-[16ch] text-balance text-[clamp(2rem,4.6vw,3.05rem)] font-bold leading-[1.06] tracking-[-0.03em]"
-              style={{ "--i": 1 } as EstiloConIndice}
-            >
-              Buzón de Consultas y Preguntas Frecuentes UCSS
+          <section className="rise max-w-xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-400/10 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.12em] text-violet-300">
+              <Sparkles size={14} /> Banco de dudas
+            </div>
+            <h1 className="mt-7 max-w-[12ch] text-balance text-[clamp(2.8rem,6vw,5rem)] font-bold leading-[0.98] tracking-[-0.055em] text-slate-50">
+              ¡Sálvale la vida a un cachimbo! 🎓
             </h1>
-
-            <p
-              className="ucss-rise mt-6 max-w-[46ch] text-pretty text-[1.0625rem] leading-[1.7] text-[#002B49]/70 dark:text-[#B9D4E4]"
-              style={{ "--i": 2 } as EstiloConIndice}
-            >
-              Déjanos tus dudas sobre trámites o procesos universitarios. Si ya sabes cómo se
-              resuelve, cuéntanoslo también: le ahorras la cola al siguiente.
+            <p className="mt-7 max-w-[58ch] text-pretty text-base leading-8 text-slate-300 sm:text-lg">
+              ¿Recuerdas cuando recién ingresaste y no sabías ni cómo pagar la pensión, dónde sacar
+              el carné o cómo usar el portal? Deja aquí esa duda o trámite que te hizo renegar en
+              primer ciclo para investigarlo y subir la solución a la app. ¡Ayudemos a la comunidad!
             </p>
 
-            <ol className="ucss-rise mt-12 space-y-7" style={{ "--i": 3 } as EstiloConIndice}>
-              {PASOS.map((paso, i) => (
-                <li key={paso.titulo} className="flex gap-5">
-                  <span className="mt-0.5 w-6 shrink-0 text-[1.0625rem] font-bold tabular-nums text-[#00A3E0]">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <span className="border-l border-[#002B49]/10 pl-5 dark:border-white/10">
-                    <span className="block text-[1rem] font-semibold tracking-[-0.01em]">
-                      {paso.titulo}
-                    </span>
-                    <span className="mt-1 block max-w-[42ch] text-[0.9375rem] leading-relaxed text-[#002B49]/60 dark:text-[#9FC4DA]">
-                      {paso.texto}
-                    </span>
-                  </span>
-                </li>
+            <div className="mt-10 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] p-5 text-sm leading-6 text-emerald-100/80">
+              <div className="flex gap-3">
+                <HeartHandshake size={19} className="mt-0.5 shrink-0 text-emerald-300" />
+                <p>
+                  Tu aporte servirá para alimentar la base de preguntas frecuentes de Uccsito y
+                  evitar que los nuevos se pierdan.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-12 grid gap-6 sm:grid-cols-3">
+              {[
+                ["01", "Recuerda", "La traba que te hizo perder tiempo."],
+                ["02", "Cuéntala", "Con palabras simples, como a un amigo."],
+                ["03", "Ayuda", "Otro cachimbo llegará mejor preparado."],
+              ].map(([number, title, text]) => (
+                <div key={number} className="border-t border-slate-800 pt-4">
+                  <span className="font-mono text-sm font-bold text-emerald-400">{number}</span>
+                  <p className="mt-3 font-semibold text-slate-200">{title}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">{text}</p>
+                </div>
               ))}
-            </ol>
+            </div>
           </section>
 
-          {/* Panel de cristal */}
+          {/* Panel del formulario */}
           <section
-            className="ucss-rise relative rounded-[1.75rem] border border-white/70 bg-white/55 p-6 shadow-[0_30px_70px_-30px_rgba(0,43,73,0.45)] backdrop-blur-2xl sm:p-8 dark:border-white/12 dark:bg-white/[0.055] dark:shadow-[0_30px_70px_-30px_rgba(0,0,0,0.8)]"
-            style={{ "--i": 2 } as EstiloConIndice}
+            className="rise rounded-[2rem] border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8"
+            style={{ animationDelay: "100ms" }}
           >
-            {!enviado ? (
+            {estado !== "success" ? (
               <form onSubmit={handleSubmit} noValidate>
-                <h2 className="text-[1.375rem] font-bold tracking-[-0.02em]">Nueva consulta</h2>
-                <p className="mt-1.5 text-[0.9375rem] text-[#002B49]/55 dark:text-[#9FC4DA]">
-                  Toma menos de dos minutos.
-                </p>
-
-                <div className="mt-8 flex flex-col">
-                  <Etiqueta>Categoría</Etiqueta>
-                  <CategoriaSelect value={categoria} onChange={setCategoria} />
-                </div>
-
-                <div className="mt-6 flex flex-col">
-                  <label htmlFor="pregunta">
-                    <Etiqueta>Tu pregunta o duda frecuente</Etiqueta>
-                  </label>
-                  <textarea
-                    id="pregunta"
-                    rows={2}
-                    value={pregunta}
-                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => {
-                      setPregunta(e.target.value);
-                      if (errorPregunta) setErrorPregunta(null);
-                    }}
-                    placeholder="¿Cómo solicito un duplicado de carné universitario?"
-                    className={`${campoBase} ${bordeCampo(Boolean(errorPregunta))} resize-y`}
-                    aria-invalid={Boolean(errorPregunta)}
-                  />
-                  {errorPregunta && (
-                    <span className="mt-2 flex items-center gap-1.5 text-[0.8125rem] font-medium text-[#C0392B] [animation:ucss-fade_200ms_cubic-bezier(0.16,1,0.3,1)] dark:text-[#F2938A]">
-                      <AlertCircle size={14} strokeWidth={2.3} />
-                      {errorPregunta}
-                    </span>
-                  )}
-                </div>
-
-                <div className="mt-6 flex flex-col">
-                  <label htmlFor="respuesta">
-                    <Etiqueta opcional>Tu respuesta o solución paso a paso</Etiqueta>
-                  </label>
-                  <textarea
-                    id="respuesta"
-                    rows={5}
-                    value={respuesta}
-                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
-                      setRespuesta(e.target.value)
-                    }
-                    placeholder={
-                      "1. Ingresa al campus virtual, sección Trámites.\n2. Paga la tasa en el banco o en línea.\n3. Sube el voucher y recoge el carné en 5 días hábiles."
-                    }
-                    className={`${campoBase} ${bordeCampo(false)} resize-y`}
-                  />
-                  <span className="mt-2 flex items-start justify-between gap-3">
-                    <span className="text-[0.8125rem] leading-[1.5] text-[#002B49]/45 dark:text-white/40">
-                      <b className="font-semibold text-[#00618c] dark:text-[#7FD8F7]">
-                        ¿No sabes la respuesta?
-                      </b>{" "}
-                      Deja este campo totalmente en blanco y la marcamos como pendiente.
-                    </span>
-                    <span className="shrink-0 pt-px text-[0.75rem] tabular-nums text-[#002B49]/35 dark:text-white/30">
-                      {respuesta.length}
-                    </span>
-                  </span>
-                </div>
-
-                <div className="mt-6 grid gap-5 sm:grid-cols-2">
-                  <div className="flex flex-col">
-                    <label htmlFor="sede">
-                      <Etiqueta opcional>Sede / Facultad</Etiqueta>
-                    </label>
-                    <div className="relative">
-                      <Building2
-                        size={16}
-                        strokeWidth={2.1}
-                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#002B49]/35 dark:text-white/35"
-                      />
-                      <input
-                        id="sede"
-                        value={sede}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setSede(e.target.value)}
-                        placeholder="Los Olivos · Ingeniería"
-                        className={`${campoBase} ${bordeCampo(false)} pl-11`}
-                      />
-                    </div>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-400">
+                      Aporte comunitario
+                    </p>
+                    <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-50">
+                      La pregunta que te hubiera gustado encontrar
+                    </h2>
                   </div>
-
-                  <div className="flex flex-col">
-                    <label htmlFor="nombre">
-                      <Etiqueta opcional>Nombre o correo</Etiqueta>
-                    </label>
-                    <div className="relative">
-                      <UserRound
-                        size={16}
-                        strokeWidth={2.1}
-                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#002B49]/35 dark:text-white/35"
-                      />
-                      <input
-                        id="nombre"
-                        value={nombre}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setNombre(e.target.value)}
-                        placeholder="tu@ucss.pe"
-                        className={`${campoBase} ${bordeCampo(false)} pl-11`}
-                      />
-                    </div>
-                  </div>
+                  <MessagesSquare className="mt-1 shrink-0 text-violet-300" size={24} />
                 </div>
 
-                {/* Vista previa + copia manual */}
-                <div className="mt-7 rounded-2xl border border-[#002B49]/10 bg-white/40 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]">
-                  <button
-                    type="button"
-                    onClick={() => setVerPreview((v) => !v)}
-                    className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-[0.875rem] font-semibold text-[#002B49]/70 transition-colors duration-150 hover:text-[#002B49] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#00A3E0]/40 dark:text-white/65 dark:hover:text-white"
+                <div className="mt-9">
+                  <label className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+                    Categoría
+                  </label>
+                  <CategoriaSelect value={categoria} onChange={setCategoria} disabled={enviando} />
+                </div>
+
+                <div className="mt-7">
+                  <label
+                    htmlFor="duda"
+                    className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-slate-400"
                   >
-                    <Eye size={15} strokeWidth={2.2} />
-                    Ver cómo llegará el mensaje
-                    <ChevronDown
-                      size={16}
-                      className={`ml-auto transition-transform duration-200 ${
-                        verPreview ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-                  {verPreview && (
-                    <div className="px-4 pb-4 [animation:ucss-fade_240ms_cubic-bezier(0.16,1,0.3,1)]">
-                      <pre className="whitespace-pre-wrap break-words rounded-xl bg-[#002B49]/[0.045] p-4 font-[var(--ucss-font)] text-[0.875rem] leading-[1.65] text-[#002B49]/80 dark:bg-black/25 dark:text-[#CFE6F2]">
-                        {mensaje}
-                      </pre>
-                      <BotonCopiar texto={mensaje} className="mt-3 w-full" />
-                    </div>
-                  )}
+                    Tu pregunta de cachimbo
+                  </label>
+                  <textarea
+                    id="duda"
+                    value={duda}
+                    onChange={handleDudaChange}
+                    disabled={enviando}
+                    rows={7}
+                    placeholder="¿Qué duda o enredo tuviste en tu primer ciclo que debería estar explicada en la app?"
+                    aria-invalid={Boolean(error)}
+                    className={`w-full resize-y rounded-2xl border bg-slate-950/70 px-4 py-4 text-base leading-7 text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+                      error
+                        ? "border-rose-400/70 focus:ring-rose-400/30"
+                        : "border-slate-700 focus:border-emerald-400 focus:ring-emerald-400/40"
+                    }`}
+                  />
+                  <div className="mt-2 flex items-start justify-between gap-4">
+                    {error ? (
+                      <p className="flex items-center gap-1.5 text-sm text-rose-300">
+                        <AlertCircle size={15} />
+                        {error}
+                      </p>
+                    ) : (
+                      <p className="text-sm leading-6 text-slate-500">
+                        Una duda real ayuda más que una respuesta perfecta.
+                      </p>
+                    )}
+                    <span className="shrink-0 font-mono text-xs text-slate-600">{duda.length}</span>
+                  </div>
                 </div>
+
+                <div className="mt-7 rounded-2xl border border-violet-400/15 bg-violet-400/[0.06] p-4 text-sm leading-6 text-slate-300">
+                  <p>
+                    <span className="font-semibold text-violet-200">Tip de veterano:</span> no hace
+                    falta que sepas la solución. Déjanos el problema y lo investigamos para la guía.
+                  </p>
+                </div>
+
+                {/* Fallo de red / endpoint */}
+                {estado === "error" && (
+                  <div className="mt-5 flex items-start gap-3 rounded-2xl border border-rose-400/30 bg-rose-400/[0.07] p-4 text-sm leading-6 text-rose-100">
+                    <AlertCircle size={18} className="mt-0.5 shrink-0 text-rose-300" />
+                    <div>
+                      <p className="font-semibold text-rose-200">No pudimos guardar tu aporte</p>
+                      <p className="mt-1 text-rose-100/75">
+                        Revisa tu conexión y vuelve a intentarlo. Tu texto sigue aquí, no se borró.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <button
                   type="submit"
                   disabled={enviando}
-                  className="group mt-7 flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#002B49] px-6 py-4 text-[1rem] font-semibold text-white shadow-[0_16px_34px_-14px_rgba(0,43,73,0.8)] transition-[background-color,transform,box-shadow] duration-150 hover:bg-[#003a61] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#00A3E0]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent dark:bg-[#00A3E0] dark:text-[#00131F] dark:shadow-[0_16px_34px_-14px_rgba(0,163,224,0.6)] dark:hover:bg-[#33B8E8]"
+                  className="mt-7 flex min-h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-emerald-400 px-6 text-base font-bold text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-300 active:translate-y-px disabled:cursor-wait disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2 focus:ring-offset-slate-900"
                 >
                   {enviando ? (
                     <>
-                      <Loader2 size={18} strokeWidth={2.4} className="animate-spin" />
-                      Abriendo WhatsApp
+                      <Loader2 size={19} className="animate-spin" /> Enviando...
+                    </>
+                  ) : estado === "error" ? (
+                    <>
+                      <RefreshCw size={18} /> Reintentar envío
                     </>
                   ) : (
                     <>
-                      <Send
-                        size={17}
-                        strokeWidth={2.3}
-                        className="transition-transform duration-200 group-hover:translate-x-0.5"
-                      />
-                      Enviar a WhatsApp 📲
+                      <Send size={18} /> Aportar mi pregunta de cachimbo 🚀
                     </>
                   )}
                 </button>
-
-                <p className="mt-4 text-center text-[0.8125rem] leading-relaxed text-[#002B49]/45 dark:text-white/40">
-                  Tu consulta viaja contigo al chat de atención. Nada se guarda en esta página.
+                <p className="mt-4 text-center text-xs leading-5 text-slate-600">
+                  Guardamos tu aporte de forma anónima. No pedimos nombre ni correo.
                 </p>
               </form>
             ) : (
-              <div className="[animation:ucss-rise_500ms_cubic-bezier(0.16,1,0.3,1)] py-6 text-center">
-                <span
-                  className={`mx-auto grid h-16 w-16 place-items-center rounded-full ${
-                    bloqueado
-                      ? "bg-[#E9A23B]/15 text-[#9A6212] dark:text-[#F2C57C]"
-                      : "bg-[#00A3E0]/15 text-[#00618c] dark:text-[#7FD8F7]"
-                  }`}
-                >
-                  {bloqueado ? (
-                    <ShieldAlert size={28} strokeWidth={2} />
-                  ) : (
-                    <PartyPopper size={28} strokeWidth={2} />
-                  )}
+              <div className="py-8 text-center">
+                <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-400/15 text-emerald-300">
+                  <HeartHandshake size={30} />
                 </span>
-
-                <h2 className="mt-6 text-balance text-[1.625rem] font-bold tracking-[-0.02em]">
-                  {bloqueado ? "Tu navegador bloqueó la pestaña" : "Gracias por escribirnos"}
+                <h2 className="mt-6 text-3xl font-bold tracking-tight text-slate-50">
+                  ¡Gracias por tu aporte!
                 </h2>
-                <p className="mx-auto mt-3 max-w-[38ch] text-pretty text-[0.9875rem] leading-[1.7] text-[#002B49]/60 dark:text-[#9FC4DA]">
-                  {bloqueado
-                    ? "Ya copiamos tu consulta al portapapeles. Abre WhatsApp con el botón de abajo y pégala, no se pierde nada."
-                    : "Termina de enviarla en la pestaña de WhatsApp que acabamos de abrir. Si no la ves, copia el mensaje y ábrelo a mano."}
+                <p className="mx-auto mt-4 max-w-[40ch] leading-7 text-slate-400">
+                  Tu pregunta ha sido guardada en nuestra base de datos para investigar la respuesta
+                  oficial.
                 </p>
-
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-                  <a
-                    href={enlaceWhatsApp}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#002B49] px-6 py-3.5 text-[0.9375rem] font-semibold text-white transition-colors duration-150 hover:bg-[#003a61] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#00A3E0]/50 dark:bg-[#00A3E0] dark:text-[#00131F] dark:hover:bg-[#33B8E8]"
-                  >
-                    <Send size={16} strokeWidth={2.3} />
-                    {bloqueado ? "Abrir WhatsApp" : "Reabrir WhatsApp"}
-                  </a>
-                  <BotonCopiar texto={mensaje} etiqueta="Copiar la consulta" />
-                </div>
-
                 <button
                   type="button"
-                  onClick={reiniciar}
-                  className="mx-auto mt-7 inline-flex items-center gap-2 text-[0.875rem] font-semibold text-[#002B49]/55 underline-offset-4 transition-colors duration-150 hover:text-[#002B49] hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#00A3E0]/40 dark:text-white/55 dark:hover:text-white"
+                  onClick={reset}
+                  className="mx-auto mt-9 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-6 font-bold text-slate-950 transition hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2 focus:ring-offset-slate-900"
                 >
-                  <RotateCcw size={15} strokeWidth={2.3} />
-                  Enviar otra pregunta
+                  <RotateCcw size={17} /> Aportar otra pregunta
                 </button>
               </div>
             )}
