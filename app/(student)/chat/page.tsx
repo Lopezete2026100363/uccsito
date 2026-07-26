@@ -621,7 +621,7 @@ export default function ChatPage() {
             <img src="/meme.jpg" alt="Meme Inge" className="w-full h-full object-cover" />
           </div>
           <span>
-            Desarrollado por <span className="font-semibold" style={{ color: '#00A3E0' }}>Luis Lopez</span> <span className="italic opacity-80">(tu inge 🤓)</span> · UCSS
+            Desarrollado por <span className="font-semibold" style={{ color: '#00A3E0' }}>Luis Lopez</span> <span className="italic opacity-80">(tu inge)</span> · UCSS
           </span>
         </div>
       </div>
