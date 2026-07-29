@@ -219,14 +219,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       answer,
-      sources: chunks.map((chunk) => ({
-        id: chunk.id,
-        filename:
-          typeof chunk.metadata?.filename === "string"
-            ? chunk.metadata.filename
-            : null,
-        similarity: chunk.similarity,
-      })),
+     sources: chunks.map((chunk) => ({
+  id: chunk.id,
+  filename:
+    typeof chunk.metadata?.filename === "string"
+      ? chunk.metadata.filename
+      : null,
+  similarity: chunk.similarity,
+})),
     });
   } catch (error) {
     console.error("❌ /api/chat:", error);
