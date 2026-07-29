@@ -1,18 +1,11 @@
 /**
  * lib/rag/embeddings.ts
- * Vectores con Google Gemini (text-embedding-004 → 768 dimensiones)
+ * Vectores con Google Gemini (text-embedding-004 → 768 dimensiones).
+ * Usa `embedContent` individual para evitar bloqueos de batch en v1beta.
  */
 
 const GEMINI_MODEL = "text-embedding-004";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:batchEmbedContents`;
-const LOTE = 100;
-
 export const EMBEDDING_DIMS = 768;
-
-interface RespuestaGemini {
-  embeddings?: Array<{ values: number[] }>;
-  error?: { message: string };
-}
 
 function apiKey(): string {
   const key =
@@ -26,45 +19,52 @@ function apiKey(): string {
   return key;
 }
 
-async function embedLote(textos: string[]): Promise<number[][]> {
-  const respuesta = await fetch(GEMINI_URL, {
+/**
+ * Genera el vector de un solo texto usando embedContent.
+ */
+async function embedTexto(texto: string): Promise<number[]> {
+  const key = apiKey();
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:embedContent?key=${key}`;
+
+  const respuesta = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-goog-api-key": apiKey(), // Autenticación correcta por header
+      "x-goog-api-key": key,
     },
     body: JSON.stringify({
-      requests: textos.map((texto) => ({
-        model: `models/${GEMINI_MODEL}`,
-        content: { parts: [{ text: texto }] },
-        taskType: "RETRIEVAL_DOCUMENT",
-      })),
+      content: { parts: [{ text: texto }] },
     }),
   });
 
-  const datos = (await respuesta.json()) as RespuestaGemini;
+  const datos = await respuesta.json();
 
   if (!respuesta.ok || datos.error) {
     throw new Error(`Gemini: ${datos.error?.message ?? respuesta.statusText}`);
   }
 
-  if (!datos.embeddings || datos.embeddings.length !== textos.length) {
-    throw new Error("Gemini devolvió menos vectores de los esperados.");
+  if (!datos.embedding?.values) {
+    throw new Error("Gemini no devolvió el vector del documento.");
   }
 
-  return datos.embeddings.map((item) => item.values);
+  return datos.embedding.values;
 }
 
+/**
+ * Vectoriza todos los fragmentos procesando de 5 en 5 simultáneamente.
+ */
 export async function generarEmbeddings(
   textos: string[],
   onProgress?: (procesados: number, total: number) => void
 ): Promise<number[][]> {
   const vectores: number[][] = [];
+  const CONCURRENCIA = 5; // 5 textos a la vez en paralelo
 
-  for (let i = 0; i < textos.length; i += LOTE) {
-    const lote = textos.slice(i, i + LOTE);
-    vectores.push(...(await embedLote(lote)));
-    onProgress?.(Math.min(i + LOTE, textos.length), textos.length);
+  for (let i = 0; i < textos.length; i += CONCURRENCIA) {
+    const bloque = textos.slice(i, i + CONCURRENCIA);
+    const resultados = await Promise.all(bloque.map((t) => embedTexto(t)));
+    vectores.push(...resultados);
+    onProgress?.(Math.min(i + CONCURRENCIA, textos.length), textos.length);
   }
 
   return vectores;
