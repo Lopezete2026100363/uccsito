@@ -1,13 +1,10 @@
 /**
  * lib/rag/embeddings.ts
- * Vectores con Google Gemini (embedding-001 → 768 dimensiones,
- * compatible al 100% con la columna `embedding` de `documents`).
+ * Vectores con Google Gemini (text-embedding-004 → 768 dimensiones)
  */
 
 const GEMINI_MODEL = "text-embedding-004";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:batchEmbedContents`;
-
-/** Gemini acepta como máximo 100 textos por llamada. */
 const LOTE = 100;
 
 export const EMBEDDING_DIMS = 768;
@@ -24,19 +21,18 @@ function apiKey(): string {
     process.env.GOOGLE_API_KEY;
 
   if (!key) {
-    throw new Error("Falta GEMINI_API_KEY en las variables de entorno del servidor.");
+    throw new Error("Falta GEMINI_API_KEY en las variables de entorno.");
   }
   return key;
 }
 
-/**
- * Vectoriza un lote de textos. `taskType: RETRIEVAL_DOCUMENT` es importante:
- * le dice a Gemini que son documentos para indexar, no consultas de búsqueda.
- */
 async function embedLote(textos: string[]): Promise<number[][]> {
-  const respuesta = await fetch(`${GEMINI_URL}?key=${apiKey()}`, {
+  const respuesta = await fetch(GEMINI_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey(), // Autenticación correcta por header
+    },
     body: JSON.stringify({
       requests: textos.map((texto) => ({
         model: `models/${GEMINI_MODEL}`,
@@ -51,6 +47,7 @@ async function embedLote(textos: string[]): Promise<number[][]> {
   if (!respuesta.ok || datos.error) {
     throw new Error(`Gemini: ${datos.error?.message ?? respuesta.statusText}`);
   }
+
   if (!datos.embeddings || datos.embeddings.length !== textos.length) {
     throw new Error("Gemini devolvió menos vectores de los esperados.");
   }
@@ -58,10 +55,6 @@ async function embedLote(textos: string[]): Promise<number[][]> {
   return datos.embeddings.map((item) => item.values);
 }
 
-/**
- * Vectoriza todos los chunks respetando el límite por lote.
- * `onProgress` permite ir informando al cliente cuántos van.
- */
 export async function generarEmbeddings(
   textos: string[],
   onProgress?: (procesados: number, total: number) => void
