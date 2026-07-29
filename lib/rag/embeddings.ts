@@ -4,7 +4,7 @@
  * compatible al 100% con la columna `embedding` de `documents`).
  */
 
-const GEMINI_MODEL = "embedding-001";
+const GEMINI_MODEL = "text-embedding-004";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:batchEmbedContents`;
 
 /** Gemini acepta como máximo 100 textos por llamada. */
