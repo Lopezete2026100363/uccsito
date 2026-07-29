@@ -1,10 +1,10 @@
 /**
  * lib/rag/embeddings.ts
- * Vectores con Google Gemini (text-embedding-004 → 768 dimensiones,
- * que es exactamente lo que espera la columna `embedding` de `documents`).
+ * Vectores con Google Gemini (embedding-001 → 768 dimensiones,
+ * compatible al 100% con la columna `embedding` de `documents`).
  */
 
-const GEMINI_MODEL = "text-embedding-004";
+const GEMINI_MODEL = "embedding-001";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:batchEmbedContents`;
 
 /** Gemini acepta como máximo 100 textos por llamada. */
@@ -18,7 +18,11 @@ interface RespuestaGemini {
 }
 
 function apiKey(): string {
-  const key = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY;
+  const key =
+    process.env.GEMINI_API_KEY ??
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ??
+    process.env.GOOGLE_API_KEY;
+
   if (!key) {
     throw new Error("Falta GEMINI_API_KEY en las variables de entorno del servidor.");
   }
