@@ -17,6 +17,7 @@
  */
 
 import { createRequire } from "node:module";
+import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { dividirEnChunks } from "@/lib/rag/chunk";
 import { generarEmbeddings } from "@/lib/rag/embeddings";
@@ -35,6 +36,17 @@ const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse/lib/pdf-parse.js") as PdfParse;
 
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
+
+/* ------------------------------ categorías -------------------------------- */
+
+/** Debe coincidir con las opciones del <select> en /admin. */
+const CATEGORIAS_VALIDAS = new Set(["Admisión", "Reglamentos", "Trámites", "General"]);
+const CATEGORIA_DEFAULT = "General";
+
+function normalizarCategoria(valor: string | null): string {
+  const limpio = (valor ?? "").trim();
+  return CATEGORIAS_VALIDAS.has(limpio) ? limpio : CATEGORIA_DEFAULT;
+}
 
 interface Evento {
   phase: "leyendo" | "fragmentando" | "vectorizando" | "guardando" | "listo" | "error";
@@ -59,7 +71,7 @@ export async function POST(request: NextRequest) {
         const formData = await request.formData();
         const file = formData.get("file");
         const tituloManual = (formData.get("titulo") as string | null)?.trim() ?? "";
-        const categoria = (formData.get("categoria") as string | null)?.trim() || "Sin categoría";
+        const categoria = normalizarCategoria(formData.get("categoria") as string | null);
 
         if (!(file instanceof File)) {
           throw new Error("No llegó ningún archivo en el campo 'file'.");
@@ -70,6 +82,13 @@ export async function POST(request: NextRequest) {
         if (file.size > MAX_BYTES) {
           throw new Error(`El archivo pesa más de ${MAX_BYTES / 1024 / 1024} MB.`);
         }
+
+        /**
+         * Identificador único de este documento.
+         * Todos sus chunks lo comparten, así el panel de /admin puede listarlo
+         * agrupado y eliminarlo completo (registro + embeddings) de una sola vez.
+         */
+        const docId = randomUUID();
 
         emitir({ phase: "leyendo" });
 
@@ -117,6 +136,7 @@ export async function POST(request: NextRequest) {
         const filas: DocumentRow[] = chunks.map((contenido, indice) => ({
           content: contenido,
           metadata: {
+            doc_id: docId,
             filename: file.name,
             titulo,
             categoria,

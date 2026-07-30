@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * app/(admin)/admin/page.tsx
+ * app/admin/page.tsx
  * Consola de conocimiento uccsito: sube PDFs, extrae texto, vectoriza e indexa.
+ * Incluye panel de gestión de documentos indexados y categoría opcional.
  *
  * npm i react-dropzone lucide-react
  */
@@ -26,9 +27,18 @@ import {
   Tag,
 } from "lucide-react";
 
+import PanelDocumentos from "./_components/PanelDocumentos";
+
 /* --------------------------------- tipos ---------------------------------- */
 
-type Fase = "espera" | "leyendo" | "fragmentando" | "vectorizando" | "guardando" | "listo" | "error";
+type Fase =
+  | "espera"
+  | "leyendo"
+  | "fragmentando"
+  | "vectorizando"
+  | "guardando"
+  | "listo"
+  | "error";
 
 interface EventoServidor {
   phase: Exclude<Fase, "espera">;
@@ -48,15 +58,12 @@ interface ArchivoEnCola {
   detalle: string;
 }
 
-const CATEGORIAS = [
-  "Reglamento",
-  "Guía",
-  "Calendario",
-  "Trámite",
-  "Matrícula",
-  "Pagos",
-  "Otro",
-] as const;
+/* ------------------------------ constantes -------------------------------- */
+
+const CATEGORIAS = ["Admisión", "Reglamentos", "Trámites", "General"] as const;
+
+/** Valor vacío = el backend guardará "General" por defecto. */
+const SIN_CATEGORIA = "";
 
 const ETIQUETA_FASE: Record<Fase, string> = {
   espera: "En cola",
@@ -86,9 +93,12 @@ export default function AdminPage() {
   const [cola, setCola] = useState<ArchivoEnCola[]>([]);
   const [procesando, setProcesando] = useState(false);
   const [titulo, setTitulo] = useState("");
-  const [categoria, setCategoria] = useState<string>(CATEGORIAS[0]);
+  const [categoria, setCategoria] = useState<string>(SIN_CATEGORIA);
   const [resumen, setResumen] = useState("");
   const [errorGlobal, setErrorGlobal] = useState("");
+
+  /** Se incrementa al terminar una carga para que el panel recargue la lista. */
+  const [refrescarDocs, setRefrescarDocs] = useState(0);
 
   // Generador de marcadores de imagen (sin cambios funcionales)
   const [imgUrl, setImgUrl] = useState("");
@@ -141,9 +151,13 @@ export default function AdminPage() {
     const formData = new FormData();
     formData.append("file", item.file);
     formData.append("titulo", cola.length === 1 ? titulo.trim() : "");
-    formData.append("categoria", categoria);
+    formData.append("categoria", categoria); // "" => el backend usa "General"
 
-    const respuesta = await fetch("/api/admin/upload-pdf", { method: "POST", body: formData });
+    const respuesta = await fetch("/api/admin/upload-pdf", {
+      method: "POST",
+      body: formData,
+    });
+
     if (!respuesta.body) throw new Error("El servidor no devolvió respuesta.");
 
     const lector = respuesta.body.getReader();
@@ -171,7 +185,9 @@ export default function AdminPage() {
             fase: "listo",
             chunks: guardados,
             progreso: 100,
-            detalle: `${guardados} fragmentos indexados${evento.pages ? ` · ${evento.pages} págs.` : ""}`,
+            detalle: `${guardados} fragmentos indexados${
+              evento.pages ? ` · ${evento.pages} págs.` : ""
+            }`,
           });
         } else {
           const progreso =
@@ -226,11 +242,15 @@ export default function AdminPage() {
         `${porHacer.length - fallidos} documento(s) indexados con ${total} fragmentos en total.`
       );
     }
+
     if (fallidos > 0) {
-      setErrorGlobal(`${fallidos} archivo(s) no se pudieron procesar. Revisa el detalle de cada uno.`);
+      setErrorGlobal(
+        `${fallidos} archivo(s) no se pudieron procesar. Revisa el detalle de cada uno.`
+      );
     }
 
     setProcesando(false);
+    setRefrescarDocs((valor) => valor + 1); // recarga la tabla de documentos
   };
 
   const copiarMarcador = (): void => {
@@ -268,10 +288,12 @@ export default function AdminPage() {
         <div className="flex items-start gap-4 rounded-2xl border border-blue-800/50 bg-blue-950/40 p-4">
           <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-blue-400" />
           <div className="text-sm">
-            <h3 className="mb-0.5 font-bold text-blue-300">Alimentación de Base de Conocimiento</h3>
+            <h3 className="mb-0.5 font-bold text-blue-300">
+              Alimentación de Base de Conocimiento
+            </h3>
             <p className="leading-relaxed text-slate-400">
-              El texto se extrae en el servidor, se divide en fragmentos de 800 caracteres con 150 de
-              superposición y se vectoriza con Gemini antes de guardarse en la tabla{" "}
+              El texto se extrae en el servidor, se divide en fragmentos de 800 caracteres con 150
+              de superposición y se vectoriza con Gemini antes de guardarse en la tabla{" "}
               <code className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-xs text-amber-300">
                 documents
               </code>
@@ -279,6 +301,9 @@ export default function AdminPage() {
             </p>
           </div>
         </div>
+
+        {/* Panel de gestión de documentos indexados */}
+        <PanelDocumentos refreshKey={refrescarDocs} />
 
         {/* Metadatos */}
         <div className="grid gap-4 sm:grid-cols-[1fr_15rem]">
@@ -309,7 +334,7 @@ export default function AdminPage() {
               htmlFor="categoria"
               className="text-xs font-semibold uppercase tracking-wide text-slate-400"
             >
-              Categoría
+              Categoría (opcional)
             </label>
             <div className="relative mt-1">
               <Tag className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
@@ -320,6 +345,7 @@ export default function AdminPage() {
                 disabled={procesando}
                 className="w-full appearance-none rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-9 pr-3 text-sm text-slate-200 outline-none transition-all focus:border-amber-500 disabled:opacity-50"
               >
+                <option value={SIN_CATEGORIA}>Sin categoría</option>
                 {CATEGORIAS.map((item) => (
                   <option key={item} value={item}>
                     {item}
@@ -327,6 +353,10 @@ export default function AdminPage() {
                 ))}
               </select>
             </div>
+            <p className="mt-1.5 text-xs text-slate-600">
+              Se guarda en <code className="font-mono text-amber-300">metadata.categoria</code>{" "}
+              para poder filtrar las búsquedas.
+            </p>
           </div>
         </div>
 
@@ -342,7 +372,9 @@ export default function AdminPage() {
           <input {...getInputProps()} />
           <div className="mb-4 rounded-2xl border border-slate-700 bg-slate-800 p-4 text-slate-400">
             <UploadCloud
-              className={`h-10 w-10 ${isDragActive ? "animate-bounce text-amber-400" : "text-slate-400"}`}
+              className={`h-10 w-10 ${
+                isDragActive ? "animate-bounce text-amber-400" : "text-slate-400"
+              }`}
             />
           </div>
           <h3 className="mb-1 text-lg font-bold text-white">
@@ -362,10 +394,7 @@ export default function AdminPage() {
 
             <div className="max-h-72 space-y-2 overflow-y-auto pr-2">
               {cola.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-xl border border-slate-800 bg-slate-900 p-3"
-                >
+                <div key={item.id} className="rounded-xl border border-slate-800 bg-slate-900 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                       {ICONO_FASE[item.fase]}
@@ -502,6 +531,7 @@ export default function AdminPage() {
                 className="mt-1 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none transition-all placeholder:text-slate-600 focus:border-amber-500"
               />
             </div>
+
             <div>
               <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 URL de la imagen (Imgur u otro)
@@ -514,6 +544,7 @@ export default function AdminPage() {
                 className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none transition-all placeholder:text-slate-600 focus:border-amber-500"
               />
             </div>
+
             <div>
               <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Descripción de la imagen
