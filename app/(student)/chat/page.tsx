@@ -399,31 +399,63 @@ export default function ChatPage() {
 
   // ── Enviar mensaje ──────────────────────────────────────────────────────────
   const sendMessage = async (text?: string) => {
-    const question = text || input.trim();
-    if (!question || loading) return;
-    setInput('');
-    playSound('send');
-    setMessages(prev => [...prev, { role: 'user', content: question }]);
-    setLoading(true);
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question }),
-      });
-      const data = await res.json();
-      playSound('receive');
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: data.answer || data.error || 'Ocurrió un error inesperado.',
-      }]);
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Error de conexión.' }]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const question = (text ?? input).trim();
 
+  if (!question || loading) return;
+
+  setInput("");
+  playSound("send");
+  setMessages((prev) => [
+    ...prev,
+    { role: "user", content: question },
+  ]);
+  setLoading(true);
+
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ question }),
+    });
+
+    const data = (await res.json()) as {
+      answer?: string;
+      error?: string;
+    };
+
+    if (!res.ok) {
+      throw new Error(data.error ?? `Error HTTP ${res.status}`);
+    }
+
+    playSound("receive");
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content:
+          data.answer ?? "El servidor no devolvió una respuesta.",
+      },
+    ]);
+  } catch (error) {
+    console.error("❌ Error enviando mensaje:", error);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content:
+          error instanceof Error
+            ? `Error: ${error.message}`
+            : "Error de conexión con el servidor.",
+      },
+    ]);
+  } finally {
+    setLoading(false);
+  }
+};
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
