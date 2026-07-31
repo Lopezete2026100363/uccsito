@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const EMBEDDING_DIMS = 768;
-const MATCH_THRESHOLD = 0.3;
+const MATCH_THRESHOLD = 0.2; // Ajustado a 0.2 para mayor tolerancia
 const MATCH_COUNT = 5;
 const MARCA_FUENTES = "📌 Fuentes consultadas:";
 
@@ -113,8 +113,7 @@ function construirPieDeFuentes(chunks: MatchDocument[]): string {
     return "";
   }
 
-  return `
-\n${MARCA_FUENTES} ${fuentes.join(", ")}`;
+  return `\n\n${MARCA_FUENTES} ${fuentes.join(", ")}`;
 }
 
 /* -------------------------- embeddings ----------------------------------- */
@@ -183,7 +182,8 @@ async function buscarChunks(
   question: string,
   supabaseUrl: string,
   supabaseKey: string,
-  googleKey: string
+  googleKey: string,
+  categoryFilter?: string | null
 ): Promise<MatchDocument[]> {
   const queryEmbedding = await generarEmbeddingPregunta(
     question,
@@ -197,14 +197,11 @@ async function buscarChunks(
     },
   });
 
-  /*
-   * Se mantiene la llamada original con tres parámetros.
-   * No cambia la dimensión del vector: sigue siendo vector(768).
-   */
   const { data, error } = await supabase.rpc("match_documents", {
     query_embedding: queryEmbedding,
     match_threshold: MATCH_THRESHOLD,
     match_count: MATCH_COUNT,
+    filter_category: categoryFilter ?? null,
   });
 
   if (error) {
@@ -243,8 +240,8 @@ async function generarRespuesta(
 
       return `[${encabezado}]\n${chunk.content}`;
     })
-   // ✅ CÓDIGO CORREGIDO:
-  .join("\n\n---\n\n");
+    .join("\n\n---\n\n");
+
   const fuentes = construirFuentes(chunks);
 
   const prompt = `Eres "uccsito", el asistente virtual oficial de la UCSS.
@@ -323,41 +320,52 @@ REGLAS:
 
 /* ------------------------------- endpoint -------------------------------- */
 
-export async function POST(
-  req: NextRequest
-): Promise<NextResponse> {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const {
-      supabaseUrl,
-      supabaseKey,
-      googleKey,
-    } = getEnv();
+    const { supabaseUrl, supabaseKey, googleKey } = getEnv();
 
-    const body = (await req.json().catch(() => null)) as {
-      question?: unknown;
-    } | null;
+    const body = await req.json().catch(() => null);
 
-    const question =
-      typeof body?.question === "string"
-        ? body.question.trim()
-        : "";
+    // ✅ EXTRAE LA PREGUNTA DESDE CUALQUIER PROPIEDAD HABITUAL DEL FRONTEND
+    let question = "";
+    if (typeof body?.question === "string") {
+      question = body.question;
+    } else if (typeof body?.prompt === "string") {
+      question = body.prompt;
+    } else if (typeof body?.message === "string") {
+      question = body.message;
+    } else if (Array.isArray(body?.messages) && body.messages.length > 0) {
+      const lastMsg = body.messages[body.messages.length - 1];
+      question = typeof lastMsg?.content === "string" ? lastMsg.content : "";
+    }
+
+    question = question.trim();
 
     if (!question) {
       return NextResponse.json(
-        {
-          error: "Envía una pregunta válida.",
-        },
-        {
-          status: 400,
-        }
+        { error: "Envía una pregunta válida." },
+        { status: 400 }
       );
     }
+
+    // ✅ FILTRO DE SALUDOS BÁSICOS (Evita buscar en vectores ante un simple "hola")
+    const lowerQ = question.toLowerCase();
+    const saludos = ["hola", "buenas", "buenos dias", "buenos días", "buenas tardes", "buenas noches", "saludos", "hola!"];
+    if (saludos.some((s) => lowerQ === s || lowerQ.startsWith(s + " "))) {
+      return NextResponse.json({
+        answer: "¡Hola! Soy **uccsito**, tu asistente virtual de la UCSS 🎓. Puedo ayudarte con información sobre reglamentos, trámites, evaluaciones y más. ¿En qué te puedo colaborar hoy?",
+        sources: [],
+      });
+    }
+
+    const categoryFilter = typeof body?.category === "string" ? body.category : null;
 
     const chunks = await buscarChunks(
       question,
       supabaseUrl,
       supabaseKey,
-      googleKey
+      googleKey,
+      categoryFilter
     );
 
     if (chunks.length === 0) {
@@ -415,9 +423,7 @@ export async function POST(
             ? error.message
             : "Error interno procesando la pregunta.",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }
