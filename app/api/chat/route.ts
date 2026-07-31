@@ -243,9 +243,8 @@ async function generarRespuesta(
 
       return `[${encabezado}]\n${chunk.content}`;
     })
-    .join("\n\n---
-\n");
-
+   // ✅ CÓDIGO CORREGIDO:
+  .join("\n\n---\n\n");
   const fuentes = construirFuentes(chunks);
 
   const prompt = `Eres "uccsito", el asistente virtual oficial de la UCSS.
