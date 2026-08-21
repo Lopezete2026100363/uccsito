@@ -1,11 +1,18 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Sun, Moon, GraduationCap } from 'lucide-react';
+import { Send, Sun, Moon, GraduationCap, Volume2, VolumeX, Menu, Plus, Trash2, X } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+}
+
+interface ChatSession {
+  id: string;
+  title: string;
+  date: string;
+  messages: Message[];
 }
 
 const QUICK_CHIPS = [
@@ -14,6 +21,13 @@ const QUICK_CHIPS = [
   { label: '📜 Reglamentos',    query: '¿Dónde puedo encontrar los reglamentos estudiantiles?' },
   { label: '🏛️ Secretaría',    query: '¿Qué trámites puedo hacer en secretaría?' },
 ];
+
+const WELCOME_MESSAGE: Message = {
+  role: 'assistant',
+  content: '¡Hola! Soy **uccsito**, tu asistente virtual de la UCSS 🎓\n\nPuedo ayudarte con información sobre reglamentos, trámites, evaluaciones y más. ¿En qué te puedo ayudar hoy?',
+};
+
+const STORAGE_KEY = 'uccsito_chat_sessions';
 
 // ── Sonidos ──────────────────────────────────────────────────────────────────
 function playSound(type: 'send' | 'receive') {
@@ -153,15 +167,13 @@ function FirefliesCanvas({ dark }: { dark: boolean }) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // ✅ CÓDIGO CORREGIDO (Seguro ante renderizado inicial)
-const resize = () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-};
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
     resize();
     window.addEventListener('resize', resize);
 
-    // Paleta según el modo: neón intenso en oscuro, saturada y bien definida en claro
     const palette = dark
       ? ['#22d3ee', '#7dd3fc', '#fbbf24', '#facc15', '#a78bfa', '#c084fc', '#f9a8d4']
       : ['#1d4ed8', '#2563eb', '#d97706', '#b45309', '#7c3aed', '#9333ea', '#0891b2'];
@@ -187,7 +199,6 @@ const resize = () => {
       };
     });
 
-    // Chispas explosivas (ráfagas) generadas por interacción
     type Spark = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; r: number };
     let sparks: Spark[] = [];
 
@@ -253,11 +264,9 @@ const resize = () => {
       const MAX_SPEED = 2.6;
 
       flies.forEach(f => {
-        // Vagabundeo ambiental: nunca se quedan quietas, incluso sin interacción
         f.vx += Math.sin(t * 0.0021 + f.phase) * 0.012;
         f.vy += Math.cos(t * 0.0025 + f.phase * 1.3) * 0.012;
 
-        // Atracción / repulsión fluida hacia el puntero
         if (active) {
           const dx = px - f.x;
           const dy = py - f.y;
@@ -276,18 +285,15 @@ const resize = () => {
           f.r += (f.baseR - f.r) * 0.08;
         }
 
-        // Fricción suave (el vagabundeo evita que lleguen a detenerse del todo)
         f.vx *= 0.975;
         f.vy *= 0.975;
 
-        // Límite de velocidad máxima
         const sp = Math.hypot(f.vx, f.vy);
         if (sp > MAX_SPEED) { f.vx = (f.vx / sp) * MAX_SPEED; f.vy = (f.vy / sp) * MAX_SPEED; }
 
         f.x += f.vx;
         f.y += f.vy;
 
-        // Rebote suave en los bordes (con leve pérdida de energía, no teletransporte)
         if (f.x < 0) { f.x = 0; f.vx *= -0.85; }
         if (f.x > canvas.width) { f.x = canvas.width; f.vx *= -0.85; }
         if (f.y < 0) { f.y = 0; f.vy *= -0.85; }
@@ -307,7 +313,6 @@ const resize = () => {
         ctx.restore();
       });
 
-      // Dibujar y actualizar chispas de la explosión
       sparks = sparks.filter(s => s.life < s.maxLife);
       sparks.forEach(s => {
         s.life += 1;
@@ -351,22 +356,197 @@ const resize = () => {
   );
 }
 
+// ── Sidebar de historial ─────────────────────────────────────────────────────
+function HistorySidebar({
+  open, dark, sessions, activeId, onSelect, onDelete, onNew, onClose,
+}: {
+  open: boolean;
+  dark: boolean;
+  sessions: ChatSession[];
+  activeId: string;
+  onSelect: (s: ChatSession) => void;
+  onDelete: (id: string, e: React.MouseEvent) => void;
+  onNew: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      {/* Overlay para móvil */}
+      <div
+        onClick={onClose}
+        className="fixed inset-0 z-30 transition-opacity"
+        style={{
+          background: 'rgba(0,0,0,0.4)',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
+        }}
+      />
+
+      <aside
+        className="fixed top-0 left-0 h-full z-40 flex flex-col transition-transform"
+        style={{
+          width: '280px',
+          transform: open ? 'translateX(0)' : 'translateX(-100%)',
+          background: dark ? 'rgba(15,23,42,0.97)' : 'rgba(255,255,255,0.97)',
+          backdropFilter: 'blur(18px)',
+          WebkitBackdropFilter: 'blur(18px)',
+          borderRight: dark ? '1px solid rgba(51,65,85,0.6)' : '1px solid rgba(226,232,240,0.8)',
+          boxShadow: open ? '4px 0 24px rgba(0,0,0,0.15)' : 'none',
+        }}
+      >
+        <div className="flex items-center justify-between px-4 py-4 shrink-0"
+          style={{ borderBottom: dark ? '1px solid rgba(51,65,85,0.5)' : '1px solid rgba(226,232,240,0.8)' }}>
+          <h3 className="font-bold text-sm" style={{ color: dark ? '#f8fafc' : '#0f172a' }}>
+            Historial de Chats
+          </h3>
+          <button onClick={onClose} className="p-1 rounded-lg hover:opacity-70">
+            <X className="w-4 h-4" style={{ color: dark ? '#94a3b8' : '#475569' }} />
+          </button>
+        </div>
+
+        <div className="px-3 pt-3 shrink-0">
+          <button
+            onClick={onNew}
+            className="w-full flex items-center justify-center gap-2 text-sm font-semibold py-2.5 rounded-xl transition-all hover:scale-[1.02]"
+            style={{ background: 'linear-gradient(135deg,#002B49,#00A3E0)', color: 'white' }}
+          >
+            <Plus className="w-4 h-4" /> Nuevo chat
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
+          {sessions.length === 0 && (
+            <p className="text-xs text-center mt-6" style={{ color: dark ? '#64748b' : '#94a3b8' }}>
+              No hay conversaciones guardadas.
+            </p>
+          )}
+          {sessions.map(session => (
+            <div
+              key={session.id}
+              onClick={() => onSelect(session)}
+              className="group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all"
+              style={{
+                background: session.id === activeId
+                  ? (dark ? 'rgba(0,163,224,0.15)' : 'rgba(0,163,224,0.1)')
+                  : 'transparent',
+                border: session.id === activeId ? '1px solid rgba(0,163,224,0.3)' : '1px solid transparent',
+              }}
+              onMouseEnter={e => { if (session.id !== activeId) e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.03)'; }}
+              onMouseLeave={e => { if (session.id !== activeId) e.currentTarget.style.background = 'transparent'; }}
+            >
+              <span className="text-sm truncate flex-1" style={{ color: dark ? '#e2e8f0' : '#1e293b' }}>
+                {session.title}
+              </span>
+              <button
+                onClick={(e) => onDelete(session.id, e)}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded-lg shrink-0 transition-opacity hover:bg-red-500/10"
+                title="Eliminar conversación"
+              >
+                <Trash2 className="w-3.5 h-3.5" style={{ color: '#ef4444' }} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </aside>
+    </>
+  );
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function ChatPage() {
   const [dark, setDark] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([{
-    role: 'assistant',
-    content: '¡Hola! Soy **uccsito**, tu asistente virtual de la UCSS 🎓\n\nPuedo ayudarte con información sobre reglamentos, trámites, evaluaciones y más. ¿En qué te puedo ayudar hoy?',
-  }]);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeId, setActiveId] = useState<string>('');
+  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [speaking, setSpeaking] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const hydratedRef = useRef(false);
+
+  // ── Cargar historial al montar ────────────────────────────────────────────
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed: ChatSession[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSessions(parsed);
+          setActiveId(parsed[0].id);
+          setMessages(parsed[0].messages);
+          hydratedRef.current = true;
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Error cargando historial:', e);
+    }
+    // Si no hay nada guardado, crea la primera sesión
+    const id = 'session_' + Date.now();
+    const initial: ChatSession = { id, title: 'Nuevo chat', date: new Date().toISOString(), messages: [WELCOME_MESSAGE] };
+    setSessions([initial]);
+    setActiveId(id);
+    setMessages([WELCOME_MESSAGE]);
+    hydratedRef.current = true;
+  }, []);
+
+  const saveSessions = useCallback((updated: ChatSession[]) => {
+    setSessions(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Error guardando historial:', e);
+    }
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  // ── Nuevo chat ────────────────────────────────────────────────────────────
+  const createNewSession = useCallback(() => {
+    // Reutiliza la sesión activa si está vacía (sin mensajes de usuario)
+    const current = sessions.find(s => s.id === activeId);
+    if (current && !current.messages.some(m => m.role === 'user')) {
+      setSidebarOpen(false);
+      return;
+    }
+    const id = 'session_' + Date.now();
+    const newSession: ChatSession = { id, title: 'Nuevo chat', date: new Date().toISOString(), messages: [WELCOME_MESSAGE] };
+    const updated = [newSession, ...sessions];
+    saveSessions(updated);
+    setActiveId(id);
+    setMessages([WELCOME_MESSAGE]);
+    setSidebarOpen(false);
+  }, [sessions, activeId, saveSessions]);
+
+  const selectSession = useCallback((session: ChatSession) => {
+    setActiveId(session.id);
+    setMessages(session.messages);
+    setSidebarOpen(false);
+  }, []);
+
+  const deleteSession = useCallback((id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = sessions.filter(s => s.id !== id);
+    if (updated.length === 0) {
+      const newId = 'session_' + Date.now();
+      const fresh: ChatSession = { id: newId, title: 'Nuevo chat', date: new Date().toISOString(), messages: [WELCOME_MESSAGE] };
+      saveSessions([fresh]);
+      setActiveId(newId);
+      setMessages([WELCOME_MESSAGE]);
+      return;
+    }
+    saveSessions(updated);
+    if (id === activeId) {
+      setActiveId(updated[0].id);
+      setMessages(updated[0].messages);
+    }
+  }, [sessions, activeId, saveSessions]);
 
   // ── Speech to Text ──────────────────────────────────────────────────────────
   const toggleMic = useCallback(() => {
@@ -397,65 +577,118 @@ export default function ChatPage() {
     rec.start();
   }, [listening]);
 
+  // ── Text to Speech ───────────────────────────────────────────────────────────
+  const speakText = useCallback((text: string) => {
+    if (!('speechSynthesis' in window) || !ttsEnabled) return;
+
+    window.speechSynthesis.cancel();
+
+    const cleanText = text
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/#+/g, '')
+      .replace(/📌.*$/gm, '')
+      .replace(/\[IMG:.*?\]/g, '')
+      .replace(/`/g, '')
+      .trim();
+
+    if (!cleanText) return;
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'es-PE';
+    utterance.rate = 1.05;
+    utterance.pitch = 1;
+
+    utterance.onstart = () => setSpeaking(true);
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
+  }, [ttsEnabled]);
+
+  const toggleTts = () => {
+    setTtsEnabled(v => {
+      if (v && speaking) {
+        window.speechSynthesis.cancel();
+        setSpeaking(false);
+      }
+      return !v;
+    });
+  };
+
   // ── Enviar mensaje ──────────────────────────────────────────────────────────
   const sendMessage = async (text?: string) => {
-  const question = (text ?? input).trim();
+    const question = (text ?? input).trim();
 
-  if (!question || loading) return;
+    if (!question || loading) return;
 
-  setInput("");
-  playSound("send");
-  setMessages((prev) => [
-    ...prev,
-    { role: "user", content: question },
-  ]);
-  setLoading(true);
+    setInput("");
+    playSound("send");
 
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ question }),
+    const userMsg: Message = { role: "user", content: question };
+    const afterUser = [...messages, userMsg];
+    setMessages(afterUser);
+    setLoading(true);
+
+    // Actualiza título de la sesión con el primer mensaje del usuario
+    const currentActiveId = activeId;
+    const updatedWithUser = sessions.map(s => {
+      if (s.id === currentActiveId) {
+        const title = s.title === 'Nuevo chat'
+          ? question.slice(0, 30) + (question.length > 30 ? '...' : '')
+          : s.title;
+        return { ...s, title, messages: afterUser };
+      }
+      return s;
     });
+    saveSessions(updatedWithUser);
 
-    const data = (await res.json()) as {
-      answer?: string;
-      error?: string;
-    };
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ question }),
+      });
 
-    if (!res.ok) {
-      throw new Error(data.error ?? `Error HTTP ${res.status}`);
-    }
+      const data = (await res.json()) as {
+        answer?: string;
+        error?: string;
+      };
 
-    playSound("receive");
+      if (!res.ok) {
+        throw new Error(data.error ?? `Error HTTP ${res.status}`);
+      }
 
-    setMessages((prev) => [
-      ...prev,
-      {
+      playSound("receive");
+
+      const botMsg: Message = {
         role: "assistant",
-        content:
-          data.answer ?? "El servidor no devolvió una respuesta.",
-      },
-    ]);
-  } catch (error) {
-    console.error("❌ Error enviando mensaje:", error);
+        content: data.answer ?? "El servidor no devolvió una respuesta.",
+      };
+      const afterBot = [...afterUser, botMsg];
+      setMessages(afterBot);
+      saveSessions(updatedWithUser.map(s => s.id === currentActiveId ? { ...s, messages: afterBot } : s));
+      speakText(botMsg.content);
+    } catch (error) {
+      console.error("❌ Error enviando mensaje:", error);
 
-    setMessages((prev) => [
-      ...prev,
-      {
+      const errMsg: Message = {
         role: "assistant",
         content:
           error instanceof Error
             ? `Error: ${error.message}`
             : "Error de conexión con el servidor.",
-      },
-    ]);
-  } finally {
-    setLoading(false);
-  }
-};
+      };
+      const afterErr = [...afterUser, errMsg];
+      setMessages(afterErr);
+      saveSessions(updatedWithUser.map(s => s.id === currentActiveId ? { ...s, messages: afterErr } : s));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
@@ -471,9 +704,19 @@ export default function ChatPage() {
   return (
     <div className="relative flex flex-col h-screen font-sans overflow-hidden" style={{ background: bg, transition: 'background 0.4s' }}>
 
-      {/* ── FONDO CÓSMICO GLOBAL (cubre toda la app, no solo el chat) ───────── */}
       <CosmicBackdrop dark={dark} />
       <FirefliesCanvas dark={dark} />
+
+      <HistorySidebar
+        open={sidebarOpen}
+        dark={dark}
+        sessions={sessions}
+        activeId={activeId}
+        onSelect={selectSession}
+        onDelete={deleteSession}
+        onNew={createNewSession}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       <style>{`
         .chat-img { border-radius:.75rem; max-width:100%; height:auto; margin-top:.5rem; display:block; box-shadow:0 4px 16px rgba(0,0,0,0.15); }
@@ -503,6 +746,16 @@ export default function ChatPage() {
           transition: 'background .4s, border-color .4s',
         }}>
 
+        {/* Botón hamburguesa (abre historial) */}
+        <button onClick={() => setSidebarOpen(true)}
+          className="shrink-0 p-2 rounded-full transition-all hover:scale-110 active:scale-95"
+          style={{ background: 'transparent' }}
+          onMouseEnter={e => { e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+          title="Historial de chats">
+          <Menu className="w-5 h-5" style={{ color: dark ? '#e2e8f0' : '#0f172a' }} />
+        </button>
+
         {/* Logo UCSS */}
         <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 flex items-center justify-center"
           style={{ background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.05)' }}>
@@ -529,6 +782,18 @@ export default function ChatPage() {
             </div>
           </div>
         </div>
+
+        {/* Toggle voz (texto a voz) */}
+        <button onClick={toggleTts}
+          className="shrink-0 p-2 rounded-full transition-all hover:scale-110 active:scale-95"
+          style={{ background: 'transparent' }}
+          onMouseEnter={e => { e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+          title={ttsEnabled ? 'Desactivar voz' : 'Activar voz'}>
+          {ttsEnabled
+            ? <Volume2 className="w-4 h-4" style={{ color: speaking ? '#00A3E0' : (dark ? '#94a3b8' : '#475569') }} />
+            : <VolumeX className="w-4 h-4" style={{ color: dark ? '#94a3b8' : '#475569' }} />}
+        </button>
 
         {/* Toggle dark mode */}
         <button onClick={() => setDark(d => !d)}
