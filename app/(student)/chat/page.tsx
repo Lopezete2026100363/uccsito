@@ -1,123 +1,118 @@
-"use client";
+'use client';
+import { useState } from 'react';
+import { Header } from '../components/Header';
+import { Sidebar } from '../components/Sidebar';
+import { Chatbot } from '../components/Chatbot';
+import { Location } from '../components/Triptych/Location';
+import { Services } from '../components/Triptych/Services';
+import { Orientation } from '../components/Triptych/Orientation';
+import { AcademicCenter } from '../components/AcademicCenter';
+import { Weather } from '../components/Weather';
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AcademicCap, ArrowRight, BookOpen, Bot, Building2, ChevronDown, ClipboardList, CloudSun, Copy, GraduationCap, HelpCircle, Home, Library, LocateFixed, Mail, Map, Menu, MessageCircle, Minus, Navigation, Phone, Plus, RefreshCw, RotateCcw, Send, Sparkles, Stethoscope, X } from "lucide-react";
-import { UCCSITO_CONFIG } from "../../../lib/uccsito-config";
-import { academicModules, faculties, services, suggestedQuestions, type Faculty, type Service } from "../../../lib/uccsito-data";
+type TabType = 'inicio' | 'chat' | 'ubicacion' | 'servicios' | 'orientacion' | 'reglamento' | 'notas' | 'tramites' | 'becas' | 'faq' | 'clima';
 
-type Tab = "inicio" | "chat" | "ubicacion" | "servicios" | "orientacion" | "reglamento" | "notas" | "tramites" | "becas" | "faq" | "clima";
-type Source = { name: string; category?: string };
-type ChatMessage = { role: "user" | "assistant"; content: string; timestamp: string; sources?: Source[] };
-type Weather = { city: string; country: string; updatedAt: string; temperature: number; apparent: number; humidity: number; wind: number; pressure: number; clouds: number; weatherCode: number; min: number; max: number };
+export default function DashboardPage() {
+  const [activeTab, setActiveTab] = useState<TabType>('inicio');
 
-const welcome = "¡Hola! Soy UCCSito 👋\n\nTu asistente virtual universitario. Puedo ayudarte a encontrar información sobre reglamentos, trámites, evaluaciones, becas, servicios y otros temas de la vida universitaria.";
-const now = () => new Intl.DateTimeFormat("es-PE", { hour: "2-digit", minute: "2-digit" }).format(new Date());
-const serviceIcons = [Stethoscope, AcademicCap, Sparkles, Home, GraduationCap, ClipboardList, AcademicCap, Sparkles, Library];
-const weatherLabels: Record<number, string> = { 0: "Cielo despejado", 1: "Mayormente despejado", 2: "Parcialmente nublado", 3: "Nublado", 45: "Niebla", 48: "Niebla con escarcha", 51: "Llovizna ligera", 53: "Llovizna", 55: "Llovizna intensa", 61: "Lluvia ligera", 63: "Lluvia", 65: "Lluvia intensa", 71: "Nieve ligera", 80: "Chubascos ligeros", 81: "Chubascos", 82: "Chubascos intensos", 95: "Tormenta" };
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'inicio':
+        return (
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+              <h1 className="text-4xl font-black text-gray-900 mb-2">
+                Bienvenido a UCCSito
+              </h1>
+              <p className="text-lg text-gray-600">
+                Tu asistente virtual universitario
+              </p>
+            </div>
 
-function BrandImage({ src, alt, compact = false }: { src: string; alt: string; compact?: boolean }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return <div aria-label={`${alt}, imagen pendiente`} className={`${compact ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm"} grid shrink-0 place-items-center rounded-2xl bg-blue-50 font-bold text-blue-700`}>UC</div>;
-  return <img src={src} alt={alt} onError={() => setFailed(true)} className={`${compact ? "h-9 w-9" : "h-12 w-12"} rounded-2xl object-cover`} />;
-}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
+              {[
+                {
+                  icon: '🤖',
+                  title: 'Chatbot UCCSito',
+                  desc: 'Haz preguntas sobre temas académicos',
+                  action: 'chat',
+                },
+                {
+                  icon: '📍',
+                  title: 'Mapa del Campus',
+                  desc: 'Ubícate en la universidad',
+                  action: 'ubicacion',
+                },
+                {
+                  icon: '🏥',
+                  title: 'Servicios UCSS',
+                  desc: 'Descubre todos nuestros servicios',
+                  action: 'servicios',
+                },
+                {
+                  icon: '🎓',
+                  title: 'Orientación',
+                  desc: 'Contacta con tu facultad',
+                  action: 'orientacion',
+                },
+                {
+                  icon: '📚',
+                  title: 'Centro Académico',
+                  desc: 'Reglamento, trámites y más',
+                  action: 'reglamento',
+                },
+                {
+                  icon: '🌤️',
+                  title: 'Clima',
+                  desc: 'Información meteorológica',
+                  action: 'clima',
+                },
+              ].map((item: any) => (
+                <button
+                  key={item.action}
+                  onClick={() => setActiveTab(item.action as TabType)}
+                  className="bg-white border border-gray-200 rounded-lg p-6 text-left hover:shadow-lg hover:border-blue-400 transition-all group"
+                >
+                  <div className="text-3xl mb-3 group-hover:scale-110 transition">
+                    {item.icon}
+                  </div>
+                  <h3 className="font-bold text-gray-900 mb-1">{item.title}</h3>
+                  <p className="text-sm text-gray-600">{item.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
 
-function Sidebar({ active, setActive, open, close }: { active: Tab; setActive: (tab: Tab) => void; open: boolean; close: () => void }) {
-  const [triptychOpen, setTriptychOpen] = useState(true);
-  const [academicOpen, setAcademicOpen] = useState(true);
-  const go = (tab: Tab) => { setActive(tab); close(); };
-  const Item = ({ tab, icon: Icon, children }: { tab: Tab; icon: typeof Home; children: React.ReactNode }) => <button onClick={() => go(tab)} aria-current={active === tab ? "page" : undefined} className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium transition-colors ${active === tab ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white"}`}><Icon size={18} />{children}</button>;
-  return <>
-    {open && <button className="fixed inset-0 z-30 bg-slate-950/40 lg:hidden" aria-label="Cerrar menú" onClick={close} />}
-    <aside className={`fixed inset-y-0 left-0 z-40 flex w-[288px] flex-col bg-[oklch(22%_0.055_253)] text-white transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] lg:static lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
-      <div className="flex items-center gap-3 px-5 py-6"><BrandImage src={UCCSITO_CONFIG.images.avatar} alt="Avatar de UCCSito" compact /><div className="min-w-0"><p className="text-lg font-bold tracking-tight">UCCSito</p><p className="truncate text-xs text-slate-400">Tu asistente universitario</p></div><button onClick={close} className="ml-auto grid h-11 w-11 place-items-center rounded-xl hover:bg-slate-800 lg:hidden" aria-label="Cerrar menú"><X size={20} /></button></div>
-      <nav className="u-scrollbar flex-1 space-y-6 overflow-y-auto px-4 pb-6">
-        <section><p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[.12em] text-slate-500">Principal</p><div className="space-y-1"><Item tab="inicio" icon={Home}>Inicio</Item><Item tab="chat" icon={Bot}>Chatbot UCCSito</Item></div></section>
-        <section><button onClick={() => setTriptychOpen(!triptychOpen)} className="mb-2 flex min-h-11 w-full items-center justify-between px-3 text-[11px] font-bold uppercase tracking-[.12em] text-slate-500"><span>Tríptico UCSS</span><ChevronDown size={16} className={`transition-transform ${triptychOpen ? "rotate-180" : ""}`} /></button>{triptychOpen && <div className="space-y-1"><Item tab="ubicacion" icon={Map}>Ubicación</Item><Item tab="servicios" icon={Building2}>Servicios</Item><Item tab="orientacion" icon={Navigation}>Orientación personalizada</Item></div>}</section>
-        <section><button onClick={() => setAcademicOpen(!academicOpen)} className="mb-2 flex min-h-11 w-full items-center justify-between px-3 text-[11px] font-bold uppercase tracking-[.12em] text-slate-500"><span>Centro académico</span><ChevronDown size={16} className={`transition-transform ${academicOpen ? "rotate-180" : ""}`} /></button>{academicOpen && <div className="space-y-1"><Item tab="reglamento" icon={BookOpen}>Reglamento</Item><Item tab="notas" icon={ClipboardList}>Notas y evaluaciones</Item><Item tab="tramites" icon={AcademicCap}>Trámites</Item><Item tab="becas" icon={GraduationCap}>Becas</Item><Item tab="faq" icon={HelpCircle}>FAQ</Item></div>}</section>
-        <section><p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[.12em] text-slate-500">Herramientas</p><Item tab="clima" icon={CloudSun}>Clima</Item></section>
-      </nav>
-      <div className="border-t border-slate-800 px-5 py-4 text-xs leading-relaxed text-slate-400">Modelos y Simulación<br />UCSS</div>
-    </aside>
-  </>;
-}
+      case 'chat':
+        return <Chatbot />;
+      case 'ubicacion':
+        return <Location />;
+      case 'servicios':
+        return <Services />;
+      case 'orientacion':
+        return <Orientation />;
+      case 'reglamento':
+      case 'notas':
+      case 'tramites':
+      case 'becas':
+      case 'faq':
+        return <AcademicCenter />;
+      case 'clima':
+        return <Weather />;
+      default:
+        return null;
+    }
+  };
 
-function Header({ openMenu }: { openMenu: () => void }) {
-  return <header className="flex min-h-[72px] items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 sm:px-7"><button onClick={openMenu} className="grid h-11 w-11 place-items-center rounded-xl hover:bg-slate-100 lg:hidden" aria-label="Abrir menú"><Menu size={22} /></button><div><p className="text-sm font-semibold text-slate-900">{UCCSITO_CONFIG.university}</p><p className="text-xs text-slate-500">{UCCSITO_CONFIG.course}</p></div><div className="ml-auto flex items-center gap-2"><BrandImage src={UCCSITO_CONFIG.images.universityLogo} alt="Logo oficial UCSS" compact /><span className="hidden text-xs font-bold text-blue-950 sm:block">UCSS</span></div></header>;
-}
-
-function Chat({ initialQuestion, consumeQuestion }: { initialQuestion: string | null; consumeQuestion: () => void }) {
-  const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: welcome, timestamp: now() }]);
-  const [loading, setLoading] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, loading]);
-  const send = useCallback(async (value?: string) => {
-    const text = (value ?? question).trim(); if (!text || loading) return;
-    setQuestion(""); setMessages((p) => [...p, { role: "user", content: text, timestamp: now() }]); setLoading(true);
-    try {
-      const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: text }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setMessages((p) => [...p, { role: "assistant", content: data.answer, timestamp: now(), sources: data.sources }]);
-    } catch { setMessages((p) => [...p, { role: "assistant", content: "No pude procesar la consulta en este momento. Intenta nuevamente.", timestamp: now() }]); }
-    finally { setLoading(false); }
-  }, [loading, question]);
-  useEffect(() => { if (initialQuestion) { void send(initialQuestion); consumeQuestion(); } }, [initialQuestion, consumeQuestion, send]);
-  const reset = () => { setMessages([{ role: "assistant", content: welcome, timestamp: now() }]); setQuestion(""); };
-  return <div className="mx-auto flex h-[calc(100dvh-120px)] min-h-[600px] max-w-5xl flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--surface)] shadow-[0_18px_60px_oklch(25%_0.04_252_/_0.07)]">
-    <div className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-4 sm:px-6"><BrandImage src={UCCSITO_CONFIG.images.avatar} alt="Avatar de UCCSito" compact /><div><h1 className="font-bold">UCCSito</h1><p className="text-xs text-emerald-700">Listo para ayudarte</p></div><button onClick={reset} className="ml-auto flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100" aria-label="Iniciar un nuevo chat"><RotateCcw size={17} /><span className="hidden sm:inline">Nuevo chat</span></button></div>
-    <div className="u-scrollbar flex-1 space-y-5 overflow-y-auto px-4 py-6 sm:px-8">
-      {messages.map((m, i) => <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>{m.role === "assistant" && <BrandImage src={UCCSITO_CONFIG.images.avatar} alt="UCCSito" compact />}<div className="max-w-[82%] sm:max-w-[72%]"><div className={`whitespace-pre-wrap rounded-2xl px-4 py-3 text-[15px] leading-6 ${m.role === "user" ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md bg-blue-50 text-slate-800"}`}>{m.content}</div>{m.sources?.length ? <div className="mt-2 rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2"><p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-blue-700">Fuentes consultadas</p><p className="text-xs text-slate-600">{m.sources.map((s) => s.name).join(" · ")}</p></div> : null}<p className={`mt-1 text-[11px] text-slate-400 ${m.role === "user" ? "text-right" : ""}`}>{m.timestamp}</p></div></div>)}
-      {loading && <div className="flex items-center gap-3 text-sm text-slate-500"><BrandImage src={UCCSITO_CONFIG.images.avatar} alt="UCCSito" compact /><span className="flex items-center gap-2 rounded-2xl bg-blue-50 px-4 py-3"><span className="h-2 w-2 animate-pulse rounded-full bg-blue-600" />Consultando información...</span></div>}<div ref={endRef} />
+  return (
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <Sidebar activeTab={activeTab} onTabChange={(tab: string) => setActiveTab(tab as TabType)} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-6">
+          {renderContent()}
+        </main>
+      </div>
     </div>
-    {messages.length === 1 && <div className="u-scrollbar flex gap-2 overflow-x-auto px-4 pb-3 sm:flex-wrap sm:px-8">{suggestedQuestions.map((q) => <button key={q} onClick={() => void send(q)} className="min-h-11 shrink-0 rounded-full border border-blue-100 bg-blue-50 px-4 text-sm font-medium text-blue-800 hover:bg-blue-100">{q}</button>)}</div>}
-    <form onSubmit={(e) => { e.preventDefault(); void send(); }} className="flex gap-2 border-t border-[var(--border)] p-3 sm:p-4"><label htmlFor="chat-question" className="sr-only">Escribe tu consulta</label><input id="chat-question" value={question} onChange={(e) => setQuestion(e.target.value)} disabled={loading} placeholder="Pregunta sobre reglamentos, trámites o servicios..." className="min-h-12 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base placeholder:text-slate-400 focus:border-blue-500" /><button disabled={loading || !question.trim()} className="grid h-12 w-12 place-items-center rounded-2xl bg-blue-600 text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Enviar consulta"><Send size={19} /></button></form>
-  </div>;
-}
-
-function HomePage({ navigate, ask }: { navigate: (t: Tab) => void; ask: (q: string) => void }) {
-  const quick = [{ tab: "ubicacion" as Tab, label: "Mapa del campus", icon: Map }, { tab: "servicios" as Tab, label: "Servicios UCSS", icon: Building2 }, { tab: "orientacion" as Tab, label: "Orientación", icon: Navigation }, { tab: "reglamento" as Tab, label: "Centro académico", icon: BookOpen }, { tab: "clima" as Tab, label: "Clima", icon: CloudSun }];
-  return <div className="mx-auto max-w-6xl space-y-10"><section className="grid items-center gap-8 overflow-hidden rounded-[32px] bg-[oklch(29%_0.095_252)] px-6 py-10 text-white sm:px-10 lg:grid-cols-[1fr_340px] lg:py-14"><div><p className="mb-3 text-sm font-semibold text-blue-200">Tu asistente virtual universitario</p><h1 className="max-w-2xl text-4xl font-bold tracking-[-.04em] sm:text-5xl">Hola, soy UCCSito.</h1><p className="mt-5 max-w-[62ch] text-base leading-7 text-blue-100">Información académica, orientación institucional y herramientas útiles en una experiencia clara y confiable.</p><button onClick={() => navigate("chat")} className="mt-7 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-white px-5 font-bold text-blue-950 hover:bg-blue-50">Consultar con UCCSito <ArrowRight size={18} /></button></div><div className="hidden justify-self-center lg:block"><BrandImage src={UCCSITO_CONFIG.images.avatar} alt="Avatar de UCCSito" /></div></section>
-    <section><div className="mb-5 flex items-end justify-between"><div><p className="text-sm font-semibold text-blue-700">Todo a mano</p><h2 className="mt-1 text-2xl font-bold tracking-tight">Accesos rápidos</h2></div></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{quick.map(({ tab, label, icon: Icon }) => <button key={tab} onClick={() => navigate(tab)} className="group flex min-h-28 flex-col justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left hover:border-blue-200 hover:shadow-sm"><Icon className="text-blue-600" size={22} /><span className="flex items-center justify-between font-semibold">{label}<ArrowRight size={16} className="transition-transform group-hover:translate-x-1" /></span></button>)}</div></section>
-    <section className="grid gap-7 lg:grid-cols-[1.1fr_.9fr]"><div><h2 className="text-2xl font-bold">Preguntas para empezar</h2><div className="mt-4 divide-y divide-[var(--border)] border-y border-[var(--border)]">{suggestedQuestions.slice(0, 4).map((q) => <button key={q} onClick={() => ask(q)} className="flex min-h-14 w-full items-center justify-between gap-3 py-3 text-left text-sm font-medium hover:text-blue-700">{q}<MessageCircle size={17} /></button>)}</div></div><div className="rounded-[28px] bg-blue-50 p-6"><p className="text-sm font-semibold text-blue-700">Explora UCCSito</p><h2 className="mt-2 text-2xl font-bold">Más que un chatbot</h2><p className="mt-3 leading-7 text-slate-600">Ubica servicios, contacta tu facultad, consulta documentos con RAG y revisa el clima actual sin datos inventados.</p></div></section>
-  </div>;
-}
-
-function DetailDialog({ item, close }: { item: Service | Faculty; close: () => void }) {
-  const isFaculty = "phone" in item;
-  const copy = async (value: string) => { await navigator.clipboard.writeText(value); };
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4" role="presentation" onMouseDown={(e) => e.target === e.currentTarget && close()}><section role="dialog" aria-modal="true" aria-labelledby="detail-title" className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-[28px] bg-[var(--surface)] p-6 shadow-2xl sm:p-8"><div className="flex items-start gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-700"><Building2 size={22} /></div><div><p className="text-xs font-bold uppercase tracking-wider text-blue-700">{isFaculty ? "Orientación académica" : "Servicio UCSS"}</p><h2 id="detail-title" className="mt-1 text-2xl font-bold">{item.name}</h2></div><button onClick={close} className="ml-auto grid h-11 w-11 place-items-center rounded-xl hover:bg-slate-100" aria-label="Cerrar"><X size={20} /></button></div><p className="mt-6 leading-7 text-slate-600">{item.description}</p><dl className="mt-6 divide-y divide-[var(--border)] border-y border-[var(--border)] text-sm"><div className="grid grid-cols-[110px_1fr] gap-3 py-4"><dt className="text-slate-500">Ubicación</dt><dd className="font-semibold">{item.location}</dd></div>{item.email && <div className="grid grid-cols-[110px_1fr] gap-3 py-4"><dt className="text-slate-500">Correo</dt><dd className="flex min-w-0 items-center gap-2"><a className="truncate font-semibold text-blue-700 hover:underline" href={`mailto:${item.email}`}>{item.email}</a><button onClick={() => void copy(item.email!)} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg hover:bg-slate-100" aria-label="Copiar correo"><Copy size={15} /></button></dd></div>}{isFaculty && item.phone && <div className="grid grid-cols-[110px_1fr] gap-3 py-4"><dt className="text-slate-500">Teléfono</dt><dd><a className="font-semibold text-blue-700" href={`tel:${item.phone.replaceAll(" ", "")}`}>{item.phone}</a></dd></div>}{!isFaculty && item.hours && <div className="grid grid-cols-[110px_1fr] gap-3 py-4"><dt className="text-slate-500">Horario</dt><dd className="font-semibold leading-6">{item.hours}</dd></div>}{!isFaculty && item.extra && <div className="grid grid-cols-[110px_1fr] gap-3 py-4"><dt className="text-slate-500">Información</dt><dd className="font-semibold leading-6">{item.extra}</dd></div>}</dl><button onClick={close} className="mt-6 min-h-12 w-full rounded-2xl bg-blue-600 font-bold text-white hover:bg-blue-700">Cerrar</button></section></div>;
-}
-
-function ServicesPage() { const [selected, setSelected] = useState<Service | null>(null); return <PageShell eyebrow="Tríptico UCSS" title="Servicios UCSS" text="Nueve áreas para acompañarte durante tu vida universitaria."><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{services.map((s, i) => { const Icon = serviceIcons[i]; return <article key={s.id} className="flex min-h-52 flex-col rounded-[24px] border border-[var(--border)] bg-[var(--surface)] p-5"><Icon size={22} className="text-blue-600" /><h2 className="mt-5 text-lg font-bold">{s.name}</h2><p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{s.description}</p><p className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-500"><LocateFixed size={14} />{s.location}</p><button onClick={() => setSelected(s)} className="mt-4 min-h-11 rounded-xl bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100">Ver información</button></article>})}</div>{selected && <DetailDialog item={selected} close={() => setSelected(null)} />}</PageShell>; }
-function OrientationPage() { const [selected, setSelected] = useState<Faculty | null>(null); return <PageShell eyebrow="Tríptico UCSS" title="Orientación personalizada" text="Encuentra el área académica que corresponde a tu carrera."><div className="space-y-3">{faculties.map((f, i) => <article key={f.id} className="grid items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:grid-cols-[48px_1fr_auto]"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-blue-50 font-bold text-blue-700">{String(i + 1).padStart(2, "0")}</div><div><h2 className="font-bold">{f.name}</h2><p className="mt-1 text-sm text-slate-500">{f.location} · {f.description}</p></div><button onClick={() => setSelected(f)} className="min-h-11 rounded-xl bg-slate-100 px-4 text-sm font-bold hover:bg-blue-50 hover:text-blue-700">Ver detalles</button></article>)}</div>{selected && <DetailDialog item={selected} close={() => setSelected(null)} />}</PageShell>; }
-
-function MapPage() {
-  const [scale, setScale] = useState(1); const [pos, setPos] = useState({ x: 0, y: 0 }); const [failed, setFailed] = useState(false); const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
-  const reset = () => { setScale(1); setPos({ x: 0, y: 0 }); };
-  return <PageShell eyebrow="Tríptico UCSS" title="Ubicación" text="Amplía y desplaza el mapa para reconocer los espacios del campus."><div className="mb-3 flex flex-wrap gap-2"><button onClick={() => setScale((s) => Math.min(4, s + .25))} className="grid h-11 w-11 place-items-center rounded-xl border bg-white" aria-label="Ampliar"><Plus size={18} /></button><button onClick={() => setScale((s) => Math.max(.75, s - .25))} className="grid h-11 w-11 place-items-center rounded-xl border bg-white" aria-label="Reducir"><Minus size={18} /></button><button onClick={reset} className="flex min-h-11 items-center gap-2 rounded-xl border bg-white px-4 text-sm font-bold"><RefreshCw size={16} />Restablecer</button><span className="self-center text-sm text-slate-500">{Math.round(scale * 100)}%</span></div><div className="relative h-[62dvh] min-h-[430px] touch-none overflow-hidden rounded-[28px] border border-[var(--border)] bg-slate-100" onWheel={(e) => { e.preventDefault(); setScale((s) => Math.max(.75, Math.min(4, s + (e.deltaY < 0 ? .15 : -.15)))); }} onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, px: pos.x, py: pos.y }; }} onPointerMove={(e) => { if (drag.current) setPos({ x: drag.current.px + e.clientX - drag.current.x, y: drag.current.py + e.clientY - drag.current.y }); }} onPointerUp={() => { drag.current = null; }}>
-    {failed ? <div className="grid h-full place-items-center px-6 text-center"><div><Map size={42} className="mx-auto text-blue-600" /><p className="mt-4 font-bold">Mapa del campus pendiente</p><p className="mt-2 text-sm text-slate-500">Coloca el archivo oficial en public/images/mapa-campus.png</p></div></div> : <img draggable={false} onError={() => setFailed(true)} src={UCCSITO_CONFIG.images.campusMap} alt="Mapa del campus UCSS" className="h-full w-full select-none object-contain" style={{ transform: `translate3d(${pos.x}px,${pos.y}px,0) scale(${scale})`, transition: drag.current ? "none" : "transform 180ms cubic-bezier(.16,1,.3,1)" }} />}
-  </div></PageShell>;
-}
-
-function AcademicPage({ tab, ask }: { tab: Tab; ask: (q: string) => void }) {
-  const module = academicModules.find((m) => m.id === tab) ?? academicModules[0]; const [open, setOpen] = useState<number | null>(null);
-  return <PageShell eyebrow="Centro académico" title={module.name} text={module.description}><div className="grid gap-7 lg:grid-cols-[1fr_300px]"><div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">{module.questions.map((q, i) => <div key={q}><button onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i} className="flex min-h-16 w-full items-center justify-between gap-4 py-4 text-left font-semibold">{q}<ChevronDown className={`shrink-0 transition-transform ${open === i ? "rotate-180" : ""}`} size={18} /></button>{open === i && <div className="pb-5"><p className="max-w-[65ch] text-sm leading-6 text-slate-600">Para evitar información no respaldada, UCCSito consultará los documentos disponibles y mostrará las fuentes utilizadas.</p><button onClick={() => ask(q)} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white">Consultar con UCCSito <ArrowRight size={16} /></button></div>}</div>)}</div><aside className="self-start rounded-[24px] bg-blue-50 p-5"><Bot className="text-blue-700" /><h2 className="mt-4 text-lg font-bold">Respuestas con respaldo</h2><p className="mt-2 text-sm leading-6 text-slate-600">Las respuestas académicas se consultan mediante el RAG existente. Si no hay evidencia suficiente, UCCSito lo indicará.</p></aside></div></PageShell>;
-}
-
-function WeatherPage() {
-  const cities = ["Lima", "Puno", "Cusco", "Arequipa", "Trujillo", "Madrid", "Tokio"]; const [city, setCity] = useState("Lima"); const [weather, setWeather] = useState<Weather | null>(null); const [loading, setLoading] = useState(true); const [error, setError] = useState(false);
-  const load = useCallback(async () => { setLoading(true); setError(false); try { const r = await fetch(`/api/weather?city=${encodeURIComponent(city)}`); const d = await r.json(); if (!r.ok) throw new Error(); setWeather(d); } catch { setError(true); } finally { setLoading(false); } }, [city]);
-  useEffect(() => { void load(); }, [load]);
-  const metric = (label: string, value: string) => <div className="py-4"><dt className="text-xs font-semibold text-blue-200">{label}</dt><dd className="mt-1 text-lg font-bold tabular-nums">{value}</dd></div>;
-  return <PageShell eyebrow="Herramientas" title="Clima en tiempo real" text="Datos actuales provistos por Open-Meteo."><div className="mb-5 flex flex-wrap gap-2">{cities.map((c) => <button key={c} onClick={() => setCity(c)} className={`min-h-11 rounded-full px-4 text-sm font-semibold ${city === c ? "bg-blue-600 text-white" : "border border-[var(--border)] bg-white hover:bg-blue-50"}`}>{c}</button>)}</div>{loading ? <div className="h-[390px] animate-pulse rounded-[30px] bg-blue-100" aria-label="Actualizando clima" /> : error || !weather ? <div className="grid min-h-[360px] place-items-center rounded-[30px] border border-red-100 bg-red-50 p-6 text-center"><div><CloudSun className="mx-auto text-red-500" size={40} /><h2 className="mt-4 text-xl font-bold">No pudimos obtener el clima</h2><p className="mt-2 text-slate-600">Intenta nuevamente.</p><button onClick={() => void load()} className="mt-5 min-h-11 rounded-xl bg-slate-900 px-5 font-bold text-white">Reintentar</button></div></div> : <section className="overflow-hidden rounded-[30px] bg-[oklch(38%_0.13_252)] p-6 text-white sm:p-9"><div className="flex flex-col justify-between gap-5 sm:flex-row"><div><p className="text-sm text-blue-200">{weather.city}, {weather.country}</p><p className="mt-2 text-6xl font-bold tracking-[-.06em] tabular-nums">{weather.temperature}°</p><p className="mt-3 text-lg font-semibold">{weatherLabels[weather.weatherCode] ?? "Condición actual"}</p></div><CloudSun size={78} className="text-blue-100" /></div><dl className="mt-8 grid grid-cols-2 divide-x divide-y divide-blue-400/30 border-t border-blue-400/30 sm:grid-cols-4">{metric("Sensación", `${weather.apparent}°C`)}{metric("Humedad", `${weather.humidity}%`)}{metric("Viento", `${weather.wind} km/h`)}{metric("Presión", `${weather.pressure} hPa`)}{metric("Mínima", `${weather.min}°C`)}{metric("Máxima", `${weather.max}°C`)}{metric("Nubosidad", `${weather.clouds}%`)}{metric("Actualizado", weather.updatedAt?.split("T")[1] ?? "Ahora")}</dl></section>}</PageShell>;
-}
-
-function PageShell({ eyebrow, title, text, children }: { eyebrow: string; title: string; text: string; children: React.ReactNode }) { return <div className="mx-auto max-w-6xl"><header className="mb-8"><p className="text-sm font-bold text-blue-700">{eyebrow}</p><h1 className="mt-2 text-3xl font-bold tracking-[-.035em] sm:text-4xl">{title}</h1><p className="mt-3 max-w-[65ch] leading-7 text-slate-600">{text}</p></header>{children}</div>; }
-
-export default function UccsitoPortal() {
-  const [active, setActive] = useState<Tab>("inicio"); const [menuOpen, setMenuOpen] = useState(false); const [queued, setQueued] = useState<string | null>(null);
-  const ask = (question: string) => { setQueued(question); setActive("chat"); };
-  const content = active === "inicio" ? <HomePage navigate={setActive} ask={ask} /> : active === "chat" ? <Chat initialQuestion={queued} consumeQuestion={() => setQueued(null)} /> : active === "ubicacion" ? <MapPage /> : active === "servicios" ? <ServicesPage /> : active === "orientacion" ? <OrientationPage /> : active === "clima" ? <WeatherPage /> : <AcademicPage tab={active} ask={ask} />;
-  return <div className="flex h-dvh overflow-hidden bg-[var(--background)]"><Sidebar active={active} setActive={setActive} open={menuOpen} close={() => setMenuOpen(false)} /><div className="flex min-w-0 flex-1 flex-col"><Header openMenu={() => setMenuOpen(true)} /><main className="u-scrollbar flex-1 overflow-y-auto p-4 sm:p-7 lg:p-9">{content}</main></div></div>;
+  );
 }
