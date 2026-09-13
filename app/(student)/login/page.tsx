@@ -1,188 +1,169 @@
 'use client';
-
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { Header } from '../components/Header';
+import { Sidebar } from '../components/Sidebar';
+import { Chatbot } from '../components/Chatbot';
+import { Location } from '../components/Triptych/Location';
+import { Services } from '../components/Triptych/Services';
+import { Orientation } from '../components/Triptych/Orientation';
+import { AcademicCenter } from '../components/AcademicCenter';
+import { Weather } from '../components/Weather';
+import { WeatherWidget } from '../components/WeatherWidget';
 
-function UccsitoAvatar({ size = 80 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="40" cy="40" r="40" fill="#0ea5e9"/>
-      <rect x="18" y="22" width="44" height="6" rx="3" fill="white"/>
-      <rect x="36" y="16" width="8" height="10" rx="2" fill="white"/>
-      <line x1="58" y1="25" x2="62" y2="34" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-      <circle cx="62" cy="36" r="3" fill="#fbbf24"/>
-      <circle cx="40" cy="46" r="16" fill="#fde68a"/>
-      <circle cx="34" cy="43" r="2.5" fill="#1e3a5f"/>
-      <circle cx="46" cy="43" r="2.5" fill="#1e3a5f"/>
-      <circle cx="35" cy="42" r="0.8" fill="white"/>
-      <circle cx="47" cy="42" r="0.8" fill="white"/>
-      <path d="M33 50 Q40 56 47 50" stroke="#1e3a5f" strokeWidth="2" strokeLinecap="round" fill="none"/>
-      <circle cx="30" cy="49" r="3" fill="#fca5a5" opacity="0.6"/>
-      <circle cx="50" cy="49" r="3" fill="#fca5a5" opacity="0.6"/>
-      <path d="M24 68 Q28 58 40 56 Q52 58 56 68" fill="#1e3a5f"/>
-      <path d="M32 62 L40 70 L48 62" fill="white" opacity="0.3"/>
-    </svg>
-  );
-}
+type TabType = 'inicio' | 'chat' | 'ubicacion' | 'servicios' | 'orientacion' | 'reglamento' | 'notas' | 'tramites' | 'becas' | 'faq' | 'clima';
 
-export default function LoginPage() {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ text: string; type: 'error' | 'success' } | null>(null);
+const EXPLORE_CARDS: Array<{ title: string; desc: string; action: TabType; icon: JSX.Element; tint: string }> = [
+  {
+    title: 'Chatbot UCCSito',
+    desc: 'Consulta sobre el reglamento, trámites, notas y más.',
+    action: 'chat',
+    tint: 'bg-emerald-50 text-emerald-600',
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12a8 8 0 1 1-3.5-6.6" /><path d="M21 3v6h-6" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Tríptico UCCS',
+    desc: 'Ubicación, servicios y orientación personalizada.',
+    action: 'ubicacion',
+    tint: 'bg-violet-50 text-violet-600',
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22.5v-18Z" />
+      </svg>
+    ),
+  },
+  {
+    title: 'APIs Externas',
+    desc: 'Clima en tiempo real y más servicios.',
+    action: 'clima',
+    tint: 'bg-sky-50 text-sky-600',
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M7 18a4.5 4.5 0 0 1-1-8.9 5.5 5.5 0 0 1 10.7-1.8A4 4 0 0 1 17 18H7Z" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Módulos Académicos',
+    desc: 'Reglamento, notas, trámites y becas.',
+    action: 'reglamento',
+    tint: 'bg-amber-50 text-amber-600',
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z" /><path d="M14 2v6h6" />
+      </svg>
+    ),
+  },
+];
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+export default function DashboardPage() {
+  const [activeTab, setActiveTab] = useState<TabType>('inicio');
 
-  const handleSubmit = async () => {
-    if (!email || !password) {
-      setMessage({ text: 'Completa todos los campos.', type: 'error' });
-      return;
+  const renderMainContent = () => {
+    switch (activeTab) {
+      case 'inicio':
+      case 'chat':
+        return <Chatbot />;
+      case 'ubicacion':
+        return <Location />;
+      case 'servicios':
+        return <Services />;
+      case 'orientacion':
+        return <Orientation />;
+      case 'reglamento':
+      case 'notas':
+      case 'tramites':
+      case 'becas':
+      case 'faq':
+        return <AcademicCenter />;
+      case 'clima':
+        return <Weather />;
+      default:
+        return null;
     }
-    setLoading(true);
-    setMessage(null);
-
-    if (mode === 'register') {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: name } }
-      });
-      if (error) {
-        setMessage({ text: error.message, type: 'error' });
-      } else {
-        setMessage({ text: '¡Cuenta creada! Revisa tu correo para confirmar.', type: 'success' });
-      }
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setMessage({ text: 'Correo o contraseña incorrectos.', type: 'error' });
-      } else {
-        window.location.href = '/chat';
-      }
-    }
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'linear-gradient(135deg,#e0f2fe 0%,#f0f9ff 50%,#e8f4fd 100%)' }}>
+    <div className="flex h-screen bg-[#f5f7fb] overflow-hidden">
+      <Sidebar activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab as TabType)} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6">
+            {/* Columna principal */}
+            <div>{renderMainContent()}</div>
 
-      <div className="w-full max-w-md">
+            {/* Columna lateral derecha */}
+            <div className="space-y-6">
+              <WeatherWidget />
 
-        {/* Card */}
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-
-          {/* Header azul UCSS */}
-          <div className="px-8 pt-8 pb-6 text-center" style={{ background: 'linear-gradient(135deg,#0369a1,#0ea5e9)' }}>
-            <div className="flex justify-center mb-3">
-              <UccsitoAvatar size={80} />
-            </div>
-            <h1 className="text-white font-bold text-2xl">uccsito</h1>
-            <p className="text-sky-100 text-sm mt-1">Asistente Virtual · UCSS</p>
-          </div>
-
-          {/* Tabs login/registro */}
-          <div className="flex border-b border-slate-100">
-            <button
-              onClick={() => { setMode('login'); setMessage(null); }}
-              className={`flex-1 py-3 text-sm font-semibold transition-all ${
-                mode === 'login'
-                  ? 'text-sky-600 border-b-2 border-sky-500'
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}>
-              Iniciar sesión
-            </button>
-            <button
-              onClick={() => { setMode('register'); setMessage(null); }}
-              className={`flex-1 py-3 text-sm font-semibold transition-all ${
-                mode === 'register'
-                  ? 'text-sky-600 border-b-2 border-sky-500'
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}>
-              Crear cuenta
-            </button>
-          </div>
-
-          {/* Formulario */}
-          <div className="px-8 py-6 space-y-4">
-
-            {mode === 'register' && (
-              <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nombre completo</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="Ej: Juan Pérez"
-                  className="w-full mt-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all"
-                />
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <h3 className="text-sm font-semibold text-gray-800 mb-4">Accesos rápidos</h3>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setActiveTab('ubicacion')}
+                    className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded-xl p-2 -m-2 transition-colors"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">Mapa del Campus</p>
+                      <p className="text-xs text-gray-400">Ubicación y distribución</p>
+                    </div>
+                    <span className="text-gray-300">›</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('servicios')}
+                    className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded-xl p-2 -m-2 transition-colors"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">Servicios UCSS</p>
+                      <p className="text-xs text-gray-400">Servicios para tu bienestar</p>
+                    </div>
+                    <span className="text-gray-300">›</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('orientacion')}
+                    className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded-xl p-2 -m-2 transition-colors"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">Orientación Personalizada</p>
+                      <p className="text-xs text-gray-400">Facultades y contacto</p>
+                    </div>
+                    <span className="text-gray-300">›</span>
+                  </button>
+                </div>
               </div>
-            )}
 
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Correo institucional</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="alumno@ucss.edu.pe"
-                className="w-full mt-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Contraseña</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                className="w-full mt-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all"
-              />
-            </div>
-
-            {/* Mensaje error/éxito */}
-            {message && (
-              <div className={`px-4 py-3 rounded-xl text-sm ${
-                message.type === 'error'
-                  ? 'bg-red-50 text-red-600 border border-red-200'
-                  : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-              }`}>
-                {message.text}
+              <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-blue-800 to-blue-950 text-white p-5 min-h-[140px] flex flex-col justify-end">
+                <p className="text-xs font-medium text-blue-200 mb-1">UCSS | Más que una universidad, una comunidad.</p>
+                <p className="text-lg font-bold leading-tight">Tu futuro empieza aquí</p>
               </div>
-            )}
-
-            {/* Botón principal */}
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="w-full py-3 rounded-xl text-white font-bold text-sm transition-all disabled:opacity-50 shadow-lg"
-              style={{ background: 'linear-gradient(135deg,#0369a1,#0ea5e9)' }}>
-              {loading ? 'Procesando...' : mode === 'login' ? 'Entrar al chat' : 'Crear mi cuenta'}
-            </button>
-
-            <p className="text-center text-xs text-slate-400 pt-1">
-              {mode === 'login'
-                ? '¿No tienes cuenta? '
-                : '¿Ya tienes cuenta? '}
-              <button
-                onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setMessage(null); }}
-                className="text-sky-500 font-semibold hover:underline">
-                {mode === 'login' ? 'Regístrate aquí' : 'Inicia sesión'}
-              </button>
-            </p>
+            </div>
           </div>
-        </div>
 
-        <p className="text-center text-xs text-sky-400 mt-4">
-          Universidad Católica Sedes Sapientiae · Sistema de IA Educativa
-        </p>
+          {/* Explora más */}
+          <div className="max-w-[1400px] mx-auto mt-6">
+            <h3 className="text-sm font-semibold text-gray-800 mb-4">Explora más en UCCSito</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {EXPLORE_CARDS.map((card) => (
+                <button
+                  key={card.title}
+                  onClick={() => setActiveTab(card.action)}
+                  className="text-left bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all"
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${card.tint}`}>
+                    {card.icon}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800 mb-1">{card.title}</p>
+                  <p className="text-xs text-gray-500 mb-3">{card.desc}</p>
+                  <span className="text-blue-600 text-sm">→</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );
