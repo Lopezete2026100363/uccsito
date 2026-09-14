@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { images, svgFallbacks } from '@/app/config/images';
 import { ImageWithFallback } from './ImageFallback';
 
@@ -12,7 +12,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const [openTriptico, setOpenTriptico] = useState(true);
   const [openTools, setOpenTools] = useState(true);
 
-  const navButton = (label: string, tab: string, Icon: (props: { className?: string }) => JSX.Element) => {
+  const navButton = (label: string, tab: string, Icon: (props: { className?: string }) => ReactElement) => {
     const isActive = activeTab === tab;
     return (
       <button
@@ -31,7 +31,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
   const groupHeader = (
     title: string,
-    Icon: (props: { className?: string }) => JSX.Element,
+    Icon: (props: { className?: string }) => ReactElement,
     isOpen: boolean,
     onToggle: () => void
   ) => (
@@ -47,7 +47,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     </button>
   );
 
-  const subNavButton = (label: string, tab: string, Icon: (props: { className?: string }) => JSX.Element) => {
+  const subNavButton = (label: string, tab: string, Icon: (props: { className?: string }) => ReactElement) => {
     const isActive = activeTab === tab;
     return (
       <button
