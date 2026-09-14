@@ -9,6 +9,8 @@ import { Orientation } from '../components/Triptych/Orientation';
 import { AcademicCenter } from '../components/AcademicCenter';
 import { Weather } from '../components/Weather';
 import { WeatherWidget } from '../components/WeatherWidget';
+import { images, svgFallbacks } from '@/app/config/images';
+import { ImageWithFallback } from '../components/ImageFallback';
 
 type TabType = 'inicio' | 'chat' | 'ubicacion' | 'servicios' | 'orientacion' | 'reglamento' | 'notas' | 'tramites' | 'becas' | 'faq' | 'clima';
 
@@ -147,9 +149,20 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-blue-800 to-blue-950 text-white p-5 min-h-[140px] flex flex-col justify-end">
-                <p className="text-xs font-medium text-blue-200 mb-1">UCSS | Más que una universidad, una comunidad.</p>
-                <p className="text-lg font-bold leading-tight">Tu futuro empieza aquí</p>
+              <div className="relative rounded-2xl overflow-hidden text-white min-h-[140px] flex flex-col justify-end">
+                <div className="absolute inset-0">
+                  <ImageWithFallback
+                    imagePath={images.campusImage.path}
+                    fallbackSvg={svgFallbacks.campusImage}
+                    alt={images.campusImage.alt}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-blue-950/90 via-blue-900/50 to-transparent" />
+                </div>
+                <div className="relative z-10 p-5">
+                  <p className="text-xs font-medium text-blue-200 mb-1">UCSS | Más que una universidad, una comunidad.</p>
+                  <p className="text-lg font-bold leading-tight">Tu futuro empieza aquí</p>
+                </div>
               </div>
             </div>
           </div>
