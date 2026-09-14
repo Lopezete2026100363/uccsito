@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { Header } from '../components/Header';
 import { Sidebar } from '../components/Sidebar';
 import { Chatbot } from '../components/Chatbot';
@@ -12,7 +12,7 @@ import { WeatherWidget } from '../components/WeatherWidget';
 
 type TabType = 'inicio' | 'chat' | 'ubicacion' | 'servicios' | 'orientacion' | 'reglamento' | 'notas' | 'tramites' | 'becas' | 'faq' | 'clima';
 
-const EXPLORE_CARDS: Array<{ title: string; desc: string; action: TabType; icon: JSX.Element; tint: string }> = [
+const EXPLORE_CARDS: Array<{ title: string; desc: string; action: TabType; icon: ReactElement; tint: string }> = [
   {
     title: 'Chatbot UCCSito',
     desc: 'Consulta sobre el reglamento, trámites, notas y más.',
