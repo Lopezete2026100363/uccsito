@@ -10,6 +10,11 @@ interface Message {
   sources?: Array<{ filename?: string; titulo?: string }>;
 }
 
+interface ChatbotProps {
+  initialQuestion?: string | null;
+  onInitialQuestionConsumed?: () => void;
+}
+
 const WELCOME_MESSAGE = `¡Hola! Soy UCCSito, tu asistente virtual de la UCSS. 👋
 
 Puedo ayudarte con información sobre el reglamento, trámites, notas, becas y mucho más. ¿En qué te puedo colaborar hoy?`;
@@ -22,7 +27,7 @@ const SUGGESTED_QUESTIONS = [
   '¿Qué pasa si desapruebo una materia?',
 ];
 
-export function Chatbot() {
+export function Chatbot({ initialQuestion, onInitialQuestionConsumed }: ChatbotProps = {}) {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: WELCOME_MESSAGE },
@@ -33,6 +38,15 @@ export function Chatbot() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Si llega una pregunta desde otra sección (ej. Centro Académico), la enviamos automáticamente
+  useEffect(() => {
+    if (initialQuestion) {
+      handleSend(initialQuestion);
+      onInitialQuestionConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuestion]);
 
   const handleSend = async (queryToSend?: string) => {
     const finalQuestion = queryToSend || question.trim();

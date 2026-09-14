@@ -61,12 +61,23 @@ const EXPLORE_CARDS: Array<{ title: string; desc: string; action: TabType; icon:
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabType>('inicio');
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+
+  const askUCCSito = (question: string) => {
+    setPendingQuestion(question);
+    setActiveTab('chat');
+  };
 
   const renderMainContent = () => {
     switch (activeTab) {
       case 'inicio':
       case 'chat':
-        return <Chatbot />;
+        return (
+          <Chatbot
+            initialQuestion={pendingQuestion}
+            onInitialQuestionConsumed={() => setPendingQuestion(null)}
+          />
+        );
       case 'ubicacion':
         return <Location />;
       case 'servicios':
@@ -78,7 +89,7 @@ export default function DashboardPage() {
       case 'tramites':
       case 'becas':
       case 'faq':
-        return <AcademicCenter />;
+        return <AcademicCenter onQuestionSelect={askUCCSito} />;
       case 'clima':
         return <Weather />;
       default:
