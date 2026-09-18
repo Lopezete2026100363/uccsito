@@ -19,7 +19,7 @@ const EXPLORE_CARDS: Array<{ title: string; desc: string; action: TabType; icon:
     title: 'Chatbot UCCSito',
     desc: 'Consulta sobre el reglamento, trámites, notas y más.',
     action: 'chat',
-    tint: 'bg-emerald-50 text-emerald-600',
+    tint: 'bg-emerald-500/10 text-emerald-400',
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 12a8 8 0 1 1-3.5-6.6" /><path d="M21 3v6h-6" />
@@ -30,7 +30,7 @@ const EXPLORE_CARDS: Array<{ title: string; desc: string; action: TabType; icon:
     title: 'Tríptico UCCS',
     desc: 'Ubicación, servicios y orientación personalizada.',
     action: 'ubicacion',
-    tint: 'bg-violet-50 text-violet-600',
+    tint: 'bg-violet-500/10 text-violet-400',
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22.5v-18Z" />
@@ -41,7 +41,7 @@ const EXPLORE_CARDS: Array<{ title: string; desc: string; action: TabType; icon:
     title: 'APIs Externas',
     desc: 'Clima en tiempo real y más servicios.',
     action: 'clima',
-    tint: 'bg-sky-50 text-sky-600',
+    tint: 'bg-cyan-500/10 text-cyan-400',
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M7 18a4.5 4.5 0 0 1-1-8.9 5.5 5.5 0 0 1 10.7-1.8A4 4 0 0 1 17 18H7Z" />
@@ -52,7 +52,7 @@ const EXPLORE_CARDS: Array<{ title: string; desc: string; action: TabType; icon:
     title: 'Módulos Académicos',
     desc: 'Reglamento, notas, trámites y becas.',
     action: 'reglamento',
-    tint: 'bg-amber-50 text-amber-600',
+    tint: 'bg-amber-500/10 text-amber-400',
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z" /><path d="M14 2v6h6" />
@@ -100,56 +100,54 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex h-screen bg-[#f5f7fb] overflow-hidden">
+    <div className="flex h-screen bg-[#0a0a10] overflow-hidden">
       <Sidebar activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab as TabType)} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6">
-            {/* Columna principal */}
             <div>{renderMainContent()}</div>
 
-            {/* Columna lateral derecha */}
             <div className="space-y-6">
               <WeatherWidget />
 
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <h3 className="text-sm font-semibold text-gray-800 mb-4">Accesos rápidos</h3>
+              <div className="bg-[#14141c] rounded-2xl border border-white/5 shadow-[6px_6px_16px_#08080c,-6px_-6px_16px_#1c1c28] p-5">
+                <h3 className="text-sm font-semibold text-cyan-300 mb-4">Accesos rápidos</h3>
                 <div className="space-y-3">
                   <button
                     onClick={() => setActiveTab('ubicacion')}
-                    className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded-xl p-2 -m-2 transition-colors"
+                    className="w-full flex items-center justify-between text-left hover:bg-black/20 rounded-xl p-2 -m-2 active:scale-[0.98] transition-all"
                   >
                     <div>
-                      <p className="text-sm font-medium text-gray-800">Mapa del Campus</p>
-                      <p className="text-xs text-gray-400">Ubicación y distribución</p>
+                      <p className="text-sm font-medium text-gray-200">Mapa del Campus</p>
+                      <p className="text-xs text-gray-500">Ubicación y distribución</p>
                     </div>
-                    <span className="text-gray-300">›</span>
+                    <span className="text-gray-600">›</span>
                   </button>
                   <button
                     onClick={() => setActiveTab('servicios')}
-                    className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded-xl p-2 -m-2 transition-colors"
+                    className="w-full flex items-center justify-between text-left hover:bg-black/20 rounded-xl p-2 -m-2 active:scale-[0.98] transition-all"
                   >
                     <div>
-                      <p className="text-sm font-medium text-gray-800">Servicios UCSS</p>
-                      <p className="text-xs text-gray-400">Servicios para tu bienestar</p>
+                      <p className="text-sm font-medium text-gray-200">Servicios UCSS</p>
+                      <p className="text-xs text-gray-500">Servicios para tu bienestar</p>
                     </div>
-                    <span className="text-gray-300">›</span>
+                    <span className="text-gray-600">›</span>
                   </button>
                   <button
                     onClick={() => setActiveTab('orientacion')}
-                    className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded-xl p-2 -m-2 transition-colors"
+                    className="w-full flex items-center justify-between text-left hover:bg-black/20 rounded-xl p-2 -m-2 active:scale-[0.98] transition-all"
                   >
                     <div>
-                      <p className="text-sm font-medium text-gray-800">Orientación Personalizada</p>
-                      <p className="text-xs text-gray-400">Facultades y contacto</p>
+                      <p className="text-sm font-medium text-gray-200">Orientación Personalizada</p>
+                      <p className="text-xs text-gray-500">Facultades y contacto</p>
                     </div>
-                    <span className="text-gray-300">›</span>
+                    <span className="text-gray-600">›</span>
                   </button>
                 </div>
               </div>
 
-              <div className="relative rounded-2xl overflow-hidden text-white min-h-[140px] flex flex-col justify-end">
+              <div className="relative rounded-2xl overflow-hidden text-white min-h-[140px] flex flex-col justify-end border border-cyan-500/20 shadow-[0_0_20px_rgba(34,211,238,0.1)]">
                 <div className="absolute inset-0">
                   <ImageWithFallback
                     imagePath={images.campusImage.path}
@@ -157,32 +155,31 @@ export default function DashboardPage() {
                     alt={images.campusImage.alt}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-blue-950/90 via-blue-900/50 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/10" />
                 </div>
                 <div className="relative z-10 p-5">
-                  <p className="text-xs font-medium text-blue-200 mb-1">UCSS | Más que una universidad, una comunidad.</p>
-                  <p className="text-lg font-bold leading-tight">Tu futuro empieza aquí</p>
+                  <p className="text-xs font-medium text-cyan-300 mb-1">UCSS | Más que una universidad, una comunidad.</p>
+                  <p className="text-lg font-bold leading-tight text-white">Tu futuro empieza aquí</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Explora más */}
           <div className="max-w-[1400px] mx-auto mt-6">
-            <h3 className="text-sm font-semibold text-gray-800 mb-4">Explora más en UCCSito</h3>
+            <h3 className="text-sm font-semibold text-cyan-300 mb-4">Explora más en UCCSito</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {EXPLORE_CARDS.map((card) => (
                 <button
                   key={card.title}
                   onClick={() => setActiveTab(card.action)}
-                  className="text-left bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all"
+                  className="text-left bg-[#14141c] rounded-2xl border border-white/5 shadow-[6px_6px_14px_#08080c,-6px_-6px_14px_#1c1c28] p-5 hover:border-cyan-500/20 active:scale-[0.98] transition-all"
                 >
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${card.tint}`}>
                     {card.icon}
                   </div>
-                  <p className="text-sm font-semibold text-gray-800 mb-1">{card.title}</p>
+                  <p className="text-sm font-semibold text-gray-100 mb-1">{card.title}</p>
                   <p className="text-xs text-gray-500 mb-3">{card.desc}</p>
-                  <span className="text-blue-600 text-sm">→</span>
+                  <span className="text-cyan-400 text-sm">→</span>
                 </button>
               ))}
             </div>
